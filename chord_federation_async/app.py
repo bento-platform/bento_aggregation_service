@@ -157,6 +157,7 @@ class SearchHandler(RequestHandler):
             finally:
                 peer_queue.task_done()
                 if peer_queue.qsize() == 0:
+                    client.close()
                     return responses
 
     async def post(self, search_path):
