@@ -12,7 +12,7 @@ setuptools.setup(
     version=__version__,
 
     python_requires=">=3.6",
-    install_requires=["Flask", "Flask-Cors", "requests"],
+    install_requires=["tornado"],
 
     author="David Lougheed",
     author_email="david.lougheed@mail.mcgill.ca",
