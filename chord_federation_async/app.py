@@ -188,21 +188,6 @@ class Application(tornado.web.Application):
                 client.close()
                 return
 
-    def __init__(self, db):
-        self.db = db
-        self.last_peers_update = datetime.utcfromtimestamp(0)
-        self.peer_cache_invalidated = False
-        self.connected_to_peer_network = False
-
-        handlers = [
-            url(r"/api/federation/service-info", ServiceInfoHandler),
-            # url(r"/service-info", ServiceInfoHandler),
-            url(r"/api/federation/peers", PeerHandler),
-            # url(r"/peers", PeerHandler),
-        ]
-
-        super(Application, self).__init__(handlers)
-
     async def get_peers(self, c):
         c.execute("SELECT url FROM peers")
         peers = set([p[0] for p in c.fetchall()])
@@ -226,6 +211,21 @@ class Application(tornado.web.Application):
             c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
 
         return peers
+
+    def __init__(self, db):
+        self.db = db
+        self.last_peers_update = datetime.utcfromtimestamp(0)
+        self.peer_cache_invalidated = False
+        self.connected_to_peer_network = False
+
+        handlers = [
+            url(r"/api/federation/service-info", ServiceInfoHandler),
+            # url(r"/service-info", ServiceInfoHandler),
+            url(r"/api/federation/peers", PeerHandler),
+            # url(r"/peers", PeerHandler),
+        ]
+
+        super(Application, self).__init__(handlers)
 
 
 application = Application(peer_db)
