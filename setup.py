@@ -24,6 +24,10 @@ setuptools.setup(
     packages=["chord_federation_async"],
     include_package_data=True,
 
+    entry_points={
+        "console_scripts": ["chord_federation_async=chord_federation_async.app:run"]
+    },
+
     url="TODO",
     license="MIT",
     classifiers=[

@@ -2,11 +2,14 @@ import chord_federation_async
 import json
 import os
 import sqlite3
+import tornado.ioloop
 import tornado.web
 
 from datetime import datetime, timedelta
 from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+from tornado.httpserver import HTTPServer
+from tornado.netutil import bind_unix_socket
 from tornado.queues import Queue
 from tornado.web import RequestHandler, url
 
@@ -259,3 +262,9 @@ class Application(tornado.web.Application):
 
 
 application = Application(peer_db)
+
+
+def run():
+    server = HTTPServer(application)
+    server.add_socket(bind_unix_socket(os.environ.get("SOCKET", "/tmp/federation.sock")))
+    tornado.ioloop.IOLoop.instance().start()
