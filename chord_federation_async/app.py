@@ -5,6 +5,7 @@ import sqlite3
 import tornado.web
 
 from datetime import datetime, timedelta
+from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 from tornado.queues import Queue
 from tornado.web import RequestHandler, url
@@ -129,8 +130,37 @@ class PeerHandler(RequestHandler):
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class SearchHandler(RequestHandler):
-    def get(self):
-        pass
+    async def post(self, search_path):
+        # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
+
+        responses = []
+        c = self.application.db.cursor()
+        peers = self.application.get_peers(c)
+        self.application.db.commit()
+
+        client = AsyncHTTPClient()
+
+        async for peer in peers:
+            try:
+                r = await client.fetch(f"{peer}api/{search_path}", body=self.request.body, request_timeout=TIMEOUT)
+                responses.append(json.loads(r.body))
+            except Exception as e:
+                # TODO: Less broad of an exception
+                responses.append(None)
+                print(str(e))
+                print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer))
+
+        good_responses = [r for r in responses if r is not None]
+
+        try:
+            self.write({
+                "results": list(chain.from_iterable((r["results"] for r in good_responses))),
+                "peers": {"responded": len(good_responses), "total": len(responses)}
+            })
+        except IndexError:
+            # TODO: Better / more compliant error message
+            self.clear()
+            self.set_status(400)
 
 
 class Application(tornado.web.Application):
