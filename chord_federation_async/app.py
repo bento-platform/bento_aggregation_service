@@ -245,23 +245,21 @@ class Application(tornado.web.Application):
 
         return peers
 
-    def __init__(self, db):
+    def __init__(self, db, base_url):
         self.db = db
         self.last_peers_update = datetime.utcfromtimestamp(0)
         self.peer_cache_invalidated = False
         self.connected_to_peer_network = False
 
         handlers = [
-            url(r"/api/federation/service-info", ServiceInfoHandler),
-            # url(r"/service-info", ServiceInfoHandler),
-            url(r"/api/federation/peers", PeerHandler),
-            # url(r"/peers", PeerHandler),
+            url(r"{}/service-info".format(base_url), ServiceInfoHandler),
+            url(r"{}/peers", PeerHandler),
         ]
 
         super(Application, self).__init__(handlers)
 
 
-application = Application(peer_db)
+application = Application(peer_db, os.environ.get("BASE_URL", ""))
 
 
 def run():
