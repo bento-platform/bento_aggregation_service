@@ -252,10 +252,10 @@ class Application(tornado.web.Application):
         self.connected_to_peer_network = False
 
         handlers = [
-            # url(r"/api/federation/service-info", ServiceInfoHandler),
-            url(r"/service-info", ServiceInfoHandler),
-            # url(r"/api/federation/peers", PeerHandler),
-            url(r"/peers", PeerHandler),
+            url(r"/api/federation/service-info", ServiceInfoHandler),
+            # url(r"/service-info", ServiceInfoHandler),
+            url(r"/api/federation/peers", PeerHandler),
+            # url(r"/peers", PeerHandler),
         ]
 
         super(Application, self).__init__(handlers)
