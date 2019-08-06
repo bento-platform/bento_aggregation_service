@@ -133,26 +133,40 @@ class PeerHandler(RequestHandler):
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class SearchHandler(RequestHandler):
-    async def post(self, search_path):
-        # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
-
-        responses = []
-        c = self.application.db.cursor()
-        peers = self.application.get_peers(c)
-        self.application.db.commit()
-
+    async def search_worker(self, peers, search_path):
         client = AsyncHTTPClient()
 
-        async for peer in peers:
+        responses = []
+
+        peer_queue = Queue()
+        for peer in peers:
+            await peer_queue.put(peer)
+
+        async for peer in peer_queue:
             try:
-                r = await client.fetch(f"{peer}api/{search_path}", body=self.request.body, request_timeout=TIMEOUT)
+                r = await client.fetch(f"{peer}api/{search_path}", method="POST", body=self.request.body,
+                                       request_timeout=TIMEOUT)
                 responses.append(json.loads(r.body))
+
             except Exception as e:
                 # TODO: Less broad of an exception
                 responses.append(None)
                 print(str(e))
                 print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer))
 
+            finally:
+                peer_queue.task_done()
+                if peer_queue.qsize() == 0:
+                    return responses
+
+    async def post(self, search_path):
+        # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
+
+        c = self.application.db.cursor()
+        peers = await self.application.get_peers(c)
+        self.application.db.commit()
+
+        responses = await self.search_worker(peers, search_path)
         good_responses = [r for r in responses if r is not None]
 
         try:
@@ -160,6 +174,7 @@ class SearchHandler(RequestHandler):
                 "results": list(chain.from_iterable((r["results"] for r in good_responses))),
                 "peers": {"responded": len(good_responses), "total": len(responses)}
             })
+
         except IndexError:
             # TODO: Better / more compliant error message
             self.clear()
