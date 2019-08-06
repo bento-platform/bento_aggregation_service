@@ -102,8 +102,7 @@ class PeerHandler(RequestHandler):
                     continue
 
                 try:
-                    r = await client.fetch(HTTPRequest(url=f"{peer_url}api/federation/service-info",
-                                                       request_timeout=TIMEOUT))
+                    r = await client.fetch(f"{peer_url}api/federation/service-info", request_timeout=TIMEOUT)
                     contacted.add(peer_url)
 
                     if json.loads(r.body)["type"] == "urn:chord:federation":
@@ -144,8 +143,9 @@ class SearchHandler(RequestHandler):
 
         async for peer in peer_queue:
             try:
-                r = await client.fetch(f"{peer}api/{search_path}", method="POST", body=self.request.body,
-                                       request_timeout=TIMEOUT)
+                r = await client.fetch(f"{peer}api/{search_path}", request_timeout=TIMEOUT, method="POST",
+                                       body=self.request.body, headers={"Content-Type": "application/json"},
+                                       raise_error=True)
                 responses.append(json.loads(r.body))
 
             except Exception as e:
