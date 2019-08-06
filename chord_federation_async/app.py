@@ -254,7 +254,7 @@ class Application(tornado.web.Application):
         handlers = [
             url(f"{base_url}/service-info", ServiceInfoHandler),
             url(f"{base_url}/peers", PeerHandler),
-            url(f"{base_url}/search-aggregate", SearchHandler),
+            url(f"{base_url}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
         ]
 
         super(Application, self).__init__(handlers)
