@@ -61,10 +61,11 @@ class ServiceInfoHandler(RequestHandler):
     async def get(self):
         # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
 
-        # Hack to force lists to update when the CHORD dashboard is loaded
-        c = self.application.db.cursor()
-        await self.application.get_peers(c)
-        self.application.db.commit()
+        if self.get_argument("update_peers", "true") == "true":
+            # Hack to force lists to update when the CHORD dashboard is loaded
+            c = self.application.db.cursor()
+            await self.application.get_peers(c)
+            self.application.db.commit()
 
         self.write({
             "id": "ca.distributedgenomics.chord_federation",  # TODO: Should be globally unique
@@ -129,9 +130,14 @@ class PeerHandler(RequestHandler):
                     continue
 
                 try:
-                    r = await client.fetch(f"{peer_url}api/federation/service-info", request_timeout=TIMEOUT)
+                    print("Trying to get {}'s URL...".format(peer_url), flush=True)
+
+                    r = await client.fetch(f"{peer_url}api/federation/service-info?update_peers=false",
+                                           request_timeout=TIMEOUT)
 
                     if json.loads(r.body)["type"] == "urn:chord:federation":
+                        print("Success for {} URL.".format(peer_url), flush=True)
+
                         # Peer two-way communication is possible
                         c.execute("SELECT 1 FROM peers WHERE url = ?", (peer_url,))
                         new_pci = new_pci or c.fetchone() is None
@@ -247,7 +253,7 @@ class Application(tornado.web.Application):
             peer_peers = []
 
             try:
-                print("Trying to fetch {} peers...".format(peer))
+                print("Notifying {}...".format(peer), flush=True)
 
                 await client.fetch(
                     f"{peer}api/federation/peers",
@@ -258,7 +264,7 @@ class Application(tornado.web.Application):
                     raise_error=True
                 )
 
-                print("Notifying {}...".format(peer))
+                print("Trying to get {} peers...".format(peer), flush=True)
 
                 r = await client.fetch(f"{peer}api/federation/peers",
                                        method="GET",
@@ -268,6 +274,8 @@ class Application(tornado.web.Application):
 
                 self.connected_to_peer_network = True
                 peer_peers = json.loads(r.body)["peers"]
+
+                print("Done for {}".format(peer), flush=True)
 
             except IndexError:
                 print(f"Error: Invalid 200 response returned by {peer}.")
