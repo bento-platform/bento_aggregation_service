@@ -115,11 +115,11 @@ class PeerHandler(RequestHandler):
 
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
-                    print(str(e))
+                    print(peer_url, str(e), flush=True)
                     self.clear()
                     self.set_status(400)
 
-            # client.close()
+            client.close()
 
             self.application.peer_cache_invalidated = new_pci
             self.clear()
@@ -251,7 +251,9 @@ class Application(tornado.web.Application):
         c.execute("SELECT url FROM peers")
         peers = set([p[0] for p in c.fetchall()])
 
-        if datetime.utcnow() - timedelta(hours=1) > self.last_peers_update or self.peer_cache_invalidated:
+        if (datetime.utcnow() - timedelta(hours=1) > self.last_peers_update or self.peer_cache_invalidated) \
+                and not self.fetching_peers:
+            self.fetching_peers = True
             self.last_peers_update = datetime.utcnow()
 
             # Peer queue
@@ -265,9 +267,10 @@ class Application(tornado.web.Application):
             # noinspection PyAsyncCall,PyTypeChecker
             await self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
+            self.fetching_peers = False
 
-        for peer in peers:
-            c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
+            for peer in peers:
+                c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
 
         return peers
 
@@ -276,6 +279,7 @@ class Application(tornado.web.Application):
         self.last_peers_update = datetime.utcfromtimestamp(0)
         self.peer_cache_invalidated = False
         self.connected_to_peer_network = False
+        self.fetching_peers = False
 
         handlers = [
             url(f"{base_url}/service-info", ServiceInfoHandler),
