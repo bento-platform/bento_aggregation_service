@@ -90,19 +90,36 @@ class PeerHandler(RequestHandler):
         self.write({"peers": list(peers), "last_updated": self.application.last_peers_update.timestamp()})
 
     async def post(self):
+        """
+        Handle notifies from other nodes.
+        """
+
         c = self.application.db.cursor()
         new_pci = self.application.peer_cache_invalidated
 
         try:
             # Test that the peer's peers can be seen and are providing the correct service type.
 
+            request_data = json.loads(self.request.body)
+
+            peer_self = request_data["self"]
             peer_peers = json.loads(self.request.body)["peers"]
             contacted = {CHORD_URL}
+
+            if peer_self in self.application.notifying:
+                # Another request is already being processed from the same node. Assume the data is the same...
+                # TODO: Is this a valid assumption?
+
+                self.clear()
+                self.set_status(200)
+
+                return
+
+            self.application.notifying.add(peer_self)
 
             client = AsyncHTTPClient()
 
             for peer_url in peer_peers:
-                print(peer_peers)
                 if peer_url in contacted:
                     continue
 
@@ -129,6 +146,8 @@ class PeerHandler(RequestHandler):
                     print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
                     print("===")
+
+            self.application.notifying.remove(peer_self)
 
             self.application.peer_cache_invalidated = new_pci
             self.clear()
@@ -231,7 +250,7 @@ class Application(tornado.web.Application):
                     f"{peer}api/federation/peers",
                     request_timeout=TIMEOUT,
                     method="POST",
-                    body=json.dumps({"peers": list(peers)}),
+                    body=json.dumps({"peers": list(peers), "self": CHORD_URL}),
                     headers={"Content-Type": "application/json"},
                     raise_error=True
                 )
@@ -258,8 +277,10 @@ class Application(tornado.web.Application):
             peers = peers.union(peer_peers)
             new_peer = False
 
+            ts = datetime.now().timestamp()
             for p in peer_peers:
-                if p not in peers_to_check_set and p not in contacted:
+                if (p not in peers_to_check_set and p not in contacted and
+                        p not in [p2 for p2 in self.last_errored if ts - self.last_errored[p2] < 30]):
                     new_peer = True
                     await peers_to_check.put(p)
                     peers_to_check_set.add(p)
@@ -312,6 +333,7 @@ class Application(tornado.web.Application):
         self.fetching_peers = False
         self.last_errored = {}
         self.contacting = set()
+        self.notifying = set()
 
         handlers = [
             url(f"{base_url}/service-info", ServiceInfoHandler),
