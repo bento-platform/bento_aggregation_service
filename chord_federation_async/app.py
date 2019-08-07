@@ -225,20 +225,24 @@ class Application(tornado.web.Application):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
+            if peer is None:
+                # Exit signal
+                return
+
             if peer in self.last_errored and datetime.now().timestamp() - self.last_errored[peer] < 30:
                 # Avoid repetitively hitting dead nodes
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
-                if peers_to_check.qsize() == 0:
-                    return
+                # if peers_to_check.qsize() == 0:
+                #     return
                 continue
 
             if peer in attempted_contact:
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
-                if peers_to_check.qsize() == 0:
-                    return
+                # if peers_to_check.qsize() == 0:
+                #     return
                 continue
 
             if peer in self.contacting:
@@ -305,13 +309,14 @@ class Application(tornado.web.Application):
             attempted_contact.add(peer)
             self.contacting.remove(peer)
 
+            peers_to_check_set.remove(peer)
+            peers_to_check.task_done()
+
             print("[{}] Queue size: {}, {}".format(peer, peers_to_check.qsize(), len(list(peers_to_check_set))),
                   flush=True)
 
-            peers_to_check_set.remove(peer)
-            peers_to_check.task_done()
-            if peers_to_check.qsize() == 0:
-                return
+            # if peers_to_check.qsize() == 0:
+            #     return
 
     async def get_peers(self, c):
         c.execute("SELECT url FROM peers")
@@ -331,10 +336,21 @@ class Application(tornado.web.Application):
 
             results = []
             attempted_contact = {CHORD_URL}
+
             # noinspection PyAsyncCall,PyTypeChecker
-            await tornado.gen.multi([
+            workers = tornado.gen.multi([
                 self.peer_worker(peers, peers_to_check, peers_to_check_set, attempted_contact, results)
                 for _ in range(10)])
+
+            # Wait for all peers to be processed
+            await peers_to_check.join()
+
+            for _ in range(10):
+                # Trigger exit for all workers
+                peers_to_check.add(None)
+
+            await workers
+
             print(results, flush=True)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
