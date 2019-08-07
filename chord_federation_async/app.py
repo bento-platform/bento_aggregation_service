@@ -186,7 +186,7 @@ class SearchHandler(RequestHandler):
 
 
 class Application(tornado.web.Application):
-    async def peer_worker(self, peers, peers_to_check, peers_to_check_set):
+    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, results):
         contacted = {CHORD_URL}
         client = AsyncHTTPClient()
 
@@ -230,10 +230,15 @@ class Application(tornado.web.Application):
                 print(str(e))
 
             peers = peers.union(peer_peers)
+            new_peer = False
+
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in contacted:
+                    new_peer = True
                     await peers_to_check.put(p)
                     peers_to_check_set.add(p)
+
+            results.append(new_peer)
 
             peers_to_check.task_done()
             if peers_to_check.qsize() == 0:
@@ -254,10 +259,11 @@ class Application(tornado.web.Application):
                 await peers_to_check.put(p)
                 peers_to_check_set.add(p)
 
+            results = []
             # noinspection PyAsyncCall,PyTypeChecker
-            # await peers_to_check.join(timeout=timedelta(seconds=TIMEOUT*2))
-            self.peer_cache_invalidated = self.peer_cache_invalidated or \
-                await self.peer_worker(peers, peers_to_check, peers_to_check_set)
+            await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
+                                     for _ in range(10)])
+            self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
         for peer in peers:
             c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
