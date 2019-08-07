@@ -213,8 +213,7 @@ class SearchHandler(RequestHandler):
 
 
 class Application(tornado.web.Application):
-    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, results):
-        contacted = {CHORD_URL}
+    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, contacted, results):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
@@ -311,9 +310,9 @@ class Application(tornado.web.Application):
                 peers_to_check_set.add(p)
 
             results = []
+            contacted = {CHORD_URL}
             # noinspection PyAsyncCall,PyTypeChecker
-            # await self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
-            await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
+            await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, contacted, results)
                                      for _ in range(10)])
             print(results)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
