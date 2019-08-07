@@ -118,6 +118,7 @@ class PeerHandler(RequestHandler):
                     print(peer_url, str(e), flush=True)
                     self.clear()
                     self.set_status(400)
+                    return
 
             self.application.peer_cache_invalidated = new_pci
             self.clear()
