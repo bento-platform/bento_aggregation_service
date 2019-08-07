@@ -119,8 +119,6 @@ class PeerHandler(RequestHandler):
                     self.clear()
                     self.set_status(400)
 
-            client.close()
-
             self.application.peer_cache_invalidated = new_pci
             self.clear()
             self.set_status(200)
@@ -154,7 +152,6 @@ class SearchHandler(RequestHandler):
                 print("finished peer {}".format(peer))
                 peer_queue.task_done()
                 if peer_queue.qsize() == 0:
-                    client.close()
                     return
 
     async def post(self, search_path):
@@ -200,7 +197,6 @@ class Application(tornado.web.Application):
             if peer in contacted:
                 peers_to_check.task_done()
                 if peers_to_check.qsize() == 0:
-                    client.close()
                     return
                 continue
 
@@ -244,7 +240,6 @@ class Application(tornado.web.Application):
 
             peers_to_check.task_done()
             if peers_to_check.qsize() == 0:
-                client.close()
                 return
 
     async def get_peers(self, c):
