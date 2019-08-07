@@ -198,7 +198,13 @@ class Application(tornado.web.Application):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
-            print("[{}] Contacting peer {}".format(datetime.now(), peer))
+            if peer_url in self.application.last_errored and \
+                    datetime.now().timestamp() - self.application.last_errored[peer_url] < 30:
+                # Avoid repetitively hitting dead nodes
+                print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
+                continue
+
+            print("[{}] Contacting peer {}".format(datetime.now(), peer), flush=True)
 
             peers_to_check_set.remove(peer)
 
@@ -235,6 +241,7 @@ class Application(tornado.web.Application):
 
             except Exception as e:
                 # TODO: Less generic error
+                print("Peer contact error for {}".format(peer), flush=True)
                 self.last_errored[peer] = self.last_errored.get(peer, datetime.now().timestamp())
                 print(peer, str(e), flush=True)
 
