@@ -198,8 +198,7 @@ class Application(tornado.web.Application):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
-            if peer in self.application.last_errored and \
-                    datetime.now().timestamp() - self.application.last_errored[peer] < 30:
+            if peer in self.last_errored and datetime.now().timestamp() - self.last_errored[peer] < 30:
                 # Avoid repetitively hitting dead nodes
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
                 continue
