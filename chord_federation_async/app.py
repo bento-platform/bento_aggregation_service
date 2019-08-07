@@ -247,6 +247,8 @@ class Application(tornado.web.Application):
             peer_peers = []
 
             try:
+                print("Trying to fetch {} peers...".format(peer))
+
                 await client.fetch(
                     f"{peer}api/federation/peers",
                     request_timeout=TIMEOUT,
@@ -255,6 +257,8 @@ class Application(tornado.web.Application):
                     headers={"Content-Type": "application/json"},
                     raise_error=True
                 )
+
+                print("Notifying {}...".format(peer))
 
                 r = await client.fetch(f"{peer}api/federation/peers",
                                        method="GET",
