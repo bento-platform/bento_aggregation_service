@@ -201,6 +201,9 @@ class Application(tornado.web.Application):
             if peer in self.last_errored and datetime.now().timestamp() - self.last_errored[peer] < 30:
                 # Avoid repetitively hitting dead nodes
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
+                peers_to_check.task_done()
+                if peers_to_check.qsize() == 0:
+                    return
                 continue
 
             print("[{}] Contacting peer {}".format(datetime.now(), peer), flush=True)
