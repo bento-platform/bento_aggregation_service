@@ -280,11 +280,13 @@ class Application(tornado.web.Application):
             # await self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
             await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
                                      for _ in range(10)])
+            print(results)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
-            self.fetching_peers = False
 
             for peer in peers:
                 c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
+
+            self.fetching_peers = False
 
         return peers
 
