@@ -347,7 +347,7 @@ class Application(tornado.web.Application):
 
             for _ in range(10):
                 # Trigger exit for all workers
-                peers_to_check.add(None)
+                await peers_to_check.put(None)
 
             await workers
 
