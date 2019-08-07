@@ -290,9 +290,11 @@ class Application(tornado.web.Application):
             new_peer = False
 
             for p in peer_peers:
-                if p not in peers_to_check_set and p not in attempted_contact:
+                if p not in peers_to_check_set and p not in attempted_contact and p not in self.contacting:
                     new_peer = True
+                    print("[{}] Trying to put {}".format(CHORD_URL, p))
                     await peers_to_check.put(p)
+                    print("[{}] Done for {}".format(CHORD_URL, p))
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
