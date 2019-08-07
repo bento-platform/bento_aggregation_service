@@ -17,7 +17,8 @@ from tornado.web import RequestHandler, url
 CHORD_URL = os.environ.get("CHORD_URL")
 TIMEOUT = 45
 
-print(CHORD_URL)
+print(CHORD_URL, flush=True)
+print(dict(os.environ), flush=True)
 
 db_path = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
