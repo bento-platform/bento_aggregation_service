@@ -198,7 +198,7 @@ class Application(tornado.web.Application):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
-            print("Contacting peer {}".format(peer))
+            print("[{}] Contacting peer {}".format(datetime.now(), peer))
 
             peers_to_check_set.remove(peer)
 
@@ -271,7 +271,9 @@ class Application(tornado.web.Application):
 
             results = []
             # noinspection PyAsyncCall,PyTypeChecker
-            await self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
+            # await self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
+            await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
+                                     for _ in range(10)])
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
             self.fetching_peers = False
 
