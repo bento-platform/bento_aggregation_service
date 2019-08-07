@@ -30,8 +30,8 @@ def init_db():
 
     c = peer_db.cursor()
     c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_URL,))
-    # c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://1.chord.dlougheed.com/",))
-    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://127.0.0.1:5000/",))
+    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://1.chord.dlougheed.com/",))
+    # c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://127.0.0.1:5000/",))
 
     peer_db.commit()
 
