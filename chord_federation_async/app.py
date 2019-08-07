@@ -289,6 +289,9 @@ class Application(tornado.web.Application):
             peers = peers.union(peer_peers)
             new_peer = False
 
+            print("[{}] At peer peers loop".format(CHORD_URL))
+            print(peer_peers, peers_to_check.qsize())
+
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in attempted_contact and p not in self.contacting:
                     new_peer = True
