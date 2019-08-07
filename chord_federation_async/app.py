@@ -2,6 +2,7 @@ import chord_federation_async
 import json
 import os
 import sqlite3
+import tornado.gen
 import tornado.ioloop
 import tornado.web
 
@@ -14,7 +15,7 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler, url
 
 CHORD_URL = os.environ.get("CHORD_URL")
-TIMEOUT = 30
+TIMEOUT = 45
 
 db_path = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
@@ -132,14 +133,8 @@ class PeerHandler(RequestHandler):
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class SearchHandler(RequestHandler):
-    async def search_worker(self, peers, search_path):
+    async def search_worker(self, peer_queue, search_path, responses):
         client = AsyncHTTPClient()
-
-        responses = []
-
-        peer_queue = Queue()
-        for peer in peers:
-            await peer_queue.put(peer)
 
         async for peer in peer_queue:
             print("starting peer {}".format(peer))
@@ -160,7 +155,7 @@ class SearchHandler(RequestHandler):
                 peer_queue.task_done()
                 if peer_queue.qsize() == 0:
                     client.close()
-                    return responses
+                    return
 
     async def post(self, search_path):
         # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
@@ -169,7 +164,13 @@ class SearchHandler(RequestHandler):
         peers = await self.application.get_peers(c)
         self.application.db.commit()
 
-        responses = await self.search_worker(peers, search_path)
+        peer_queue = Queue()
+        for peer in peers:
+            await peer_queue.put(peer)
+
+        responses = []
+        # noinspection PyTypeChecker
+        await tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
         good_responses = [r for r in responses if r is not None]
 
         try:
