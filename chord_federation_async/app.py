@@ -278,7 +278,7 @@ class Application(tornado.web.Application):
                 print("Done for {}".format(peer), flush=True)
 
             except IndexError:
-                print(f"Error: Invalid 200 response returned by {peer}.")
+                print(f"Error: Invalid 200 response returned by {peer}.", flush=True)
 
             except Exception as e:
                 # TODO: Less generic error
@@ -289,15 +289,15 @@ class Application(tornado.web.Application):
             peers = peers.union(peer_peers)
             new_peer = False
 
-            print("[{}] At peer peers loop for {}".format(CHORD_URL, peer))
-            print(peer_peers, peers_to_check.qsize(), len(list(peers_to_check_set)))
+            print("[{}] At peer peers loop for {}".format(CHORD_URL, peer), flush=True)
+            print(peer_peers, peers_to_check.qsize(), len(list(peers_to_check_set)), flush=True)
 
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in self.contacting and p not in attempted_contact:
                     new_peer = True
-                    print("[{}] Trying to put {}".format(CHORD_URL, p))
+                    print("[{}] Trying to put {}".format(CHORD_URL, p), flush=True)
                     await peers_to_check.put(p)
-                    print("[{}] Done for {}".format(CHORD_URL, p))
+                    print("[{}] Done for {}".format(CHORD_URL, p), flush=True)
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
@@ -305,7 +305,8 @@ class Application(tornado.web.Application):
             attempted_contact.add(peer)
             self.contacting.remove(peer)
 
-            print("[{}] Queue size: {}, {}".format(peer, peers_to_check.qsize(), len(list(peers_to_check_set))))
+            print("[{}] Queue size: {}, {}".format(peer, peers_to_check.qsize(), len(list(peers_to_check_set))),
+                  flush=True)
 
             peers_to_check_set.remove(peer)
             peers_to_check.task_done()
@@ -334,7 +335,7 @@ class Application(tornado.web.Application):
             await tornado.gen.multi([
                 self.peer_worker(peers, peers_to_check, peers_to_check_set, attempted_contact, results)
                 for _ in range(10)])
-            print(results)
+            print(results, flush=True)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
             for peer in peers:
