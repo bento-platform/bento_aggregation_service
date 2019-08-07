@@ -102,6 +102,7 @@ class PeerHandler(RequestHandler):
             client = AsyncHTTPClient()
 
             for peer_url in peer_peers:
+                print(peer_peers)
                 if peer_url in contacted:
                     continue
 
@@ -201,22 +202,29 @@ class Application(tornado.web.Application):
             if peer in self.last_errored and datetime.now().timestamp() - self.last_errored[peer] < 30:
                 # Avoid repetitively hitting dead nodes
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
+                peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
                 if peers_to_check.qsize() == 0:
                     return
                 continue
+
+            if peer in contacted:
+                peers_to_check_set.remove(peer)
+                peers_to_check.task_done()
+                if peers_to_check.qsize() == 0:
+                    return
+                continue
+
+            if peer in self.contacting:
+                print("[{}] Avoiding race on peer {}".format(datetime.now(), peer), flush=True)
+                # TODO: Do we call task_done() here?
+                continue
+
+            self.contacting.add(peer)
 
             print("[{}] Contacting peer {}".format(datetime.now(), peer), flush=True)
 
-            peers_to_check_set.remove(peer)
-
             peer_peers = []
-
-            if peer in contacted:
-                peers_to_check.task_done()
-                if peers_to_check.qsize() == 0:
-                    return
-                continue
 
             try:
                 await client.fetch(
@@ -257,6 +265,9 @@ class Application(tornado.web.Application):
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
+
+            self.contacting.remove(peer)
+            peers_to_check_set.remove(peer)
 
             peers_to_check.task_done()
             if peers_to_check.qsize() == 0:
@@ -300,6 +311,7 @@ class Application(tornado.web.Application):
         self.connected_to_peer_network = False
         self.fetching_peers = False
         self.last_errored = {}
+        self.contacting = set()
 
         handlers = [
             url(f"{base_url}/service-info", ServiceInfoHandler),
