@@ -115,10 +115,9 @@ class PeerHandler(RequestHandler):
 
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
+                    print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
-                    self.clear()
-                    self.set_status(400)
-                    return
+                    print("===")
 
             self.application.peer_cache_invalidated = new_pci
             self.clear()
