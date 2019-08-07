@@ -105,6 +105,11 @@ class PeerHandler(RequestHandler):
                 if peer_url in contacted:
                     continue
 
+                if peer_url in self.application.last_errored and \
+                        datetime.now().timestamp() - self.application.last_errored[peer_url] < 30:
+                    # Avoid repetitively hitting dead nodes
+                    continue
+
                 try:
                     r = await client.fetch(f"{peer_url}api/federation/service-info", request_timeout=TIMEOUT)
                     contacted.add(peer_url)
@@ -118,6 +123,8 @@ class PeerHandler(RequestHandler):
 
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
+                    self.application.last_errored[peer_url] = self.application.last_errored.get(
+                        peer_url, datetime.now().timestamp())
                     print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
                     print("===")
@@ -228,6 +235,7 @@ class Application(tornado.web.Application):
 
             except Exception as e:
                 # TODO: Less generic error
+                self.last_errored[peer] = self.last_errored.get(peer, datetime.now().timestamp())
                 print(peer, str(e), flush=True)
 
             peers = peers.union(peer_peers)
@@ -278,6 +286,7 @@ class Application(tornado.web.Application):
         self.peer_cache_invalidated = False
         self.connected_to_peer_network = False
         self.fetching_peers = False
+        self.last_errored = {}
 
         handlers = [
             url(f"{base_url}/service-info", ServiceInfoHandler),
