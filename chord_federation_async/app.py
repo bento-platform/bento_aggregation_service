@@ -104,7 +104,7 @@ class PeerHandler(RequestHandler):
 
             peer_self = request_data["self"]
             peer_peers = json.loads(self.request.body)["peers"]
-            contacted = {CHORD_URL}
+            attempted_contact = {CHORD_URL}
 
             if peer_self in self.application.notifying:
                 # Another request is already being processed from the same node. Assume the data is the same...
@@ -120,7 +120,7 @@ class PeerHandler(RequestHandler):
             client = AsyncHTTPClient()
 
             for peer_url in peer_peers:
-                if peer_url in contacted:
+                if peer_url in attempted_contact:
                     continue
 
                 if peer_url in self.application.last_errored and \
@@ -130,7 +130,6 @@ class PeerHandler(RequestHandler):
 
                 try:
                     r = await client.fetch(f"{peer_url}api/federation/service-info", request_timeout=TIMEOUT)
-                    contacted.add(peer_url)
 
                     if json.loads(r.body)["type"] == "urn:chord:federation":
                         # Peer two-way communication is possible
@@ -146,6 +145,9 @@ class PeerHandler(RequestHandler):
                     print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
                     print("===")
+
+                finally:
+                    attempted_contact.add(peer_url)
 
             self.application.notifying.remove(peer_self)
 
@@ -213,7 +215,7 @@ class SearchHandler(RequestHandler):
 
 
 class Application(tornado.web.Application):
-    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, contacted, results):
+    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, attempted_contact, results):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
@@ -226,7 +228,7 @@ class Application(tornado.web.Application):
                     return
                 continue
 
-            if peer in contacted:
+            if peer in attempted_contact:
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
                 if peers_to_check.qsize() == 0:
@@ -261,7 +263,6 @@ class Application(tornado.web.Application):
                 # If a non-200 response is encountered, an error is raised
 
                 self.connected_to_peer_network = True
-                contacted.add(peer)
                 peer_peers = json.loads(r.body)["peers"]
 
             except IndexError:
@@ -276,16 +277,15 @@ class Application(tornado.web.Application):
             peers = peers.union(peer_peers)
             new_peer = False
 
-            ts = datetime.now().timestamp()
             for p in peer_peers:
-                if (p not in peers_to_check_set and p not in contacted and
-                        p not in [p2 for p2 in self.last_errored if ts - self.last_errored[p2] < 30]):
+                if p not in peers_to_check_set and p not in attempted_contact:
                     new_peer = True
                     await peers_to_check.put(p)
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
 
+            attempted_contact.add(peer)
             self.contacting.remove(peer)
             peers_to_check_set.remove(peer)
 
@@ -310,10 +310,11 @@ class Application(tornado.web.Application):
                 peers_to_check_set.add(p)
 
             results = []
-            contacted = {CHORD_URL}
+            attempted_contact = {CHORD_URL}
             # noinspection PyAsyncCall,PyTypeChecker
-            await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, contacted, results)
-                                     for _ in range(10)])
+            await tornado.gen.multi([
+                self.peer_worker(peers, peers_to_check, peers_to_check_set, attempted_contact, results)
+                for _ in range(10)])
             print(results)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
