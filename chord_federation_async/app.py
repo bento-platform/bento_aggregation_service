@@ -142,6 +142,7 @@ class SearchHandler(RequestHandler):
             await peer_queue.put(peer)
 
         async for peer in peer_queue:
+            print("starting peer {}".format(peer))
             try:
                 r = await client.fetch(f"{peer}api/{search_path}", request_timeout=TIMEOUT, method="POST",
                                        body=self.request.body, headers={"Content-Type": "application/json"},
@@ -155,6 +156,7 @@ class SearchHandler(RequestHandler):
                 print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer))
 
             finally:
+                print("finished peer {}".format(peer))
                 peer_queue.task_done()
                 if peer_queue.qsize() == 0:
                     client.close()
