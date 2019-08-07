@@ -227,7 +227,7 @@ class Application(tornado.web.Application):
 
             except Exception as e:
                 # TODO: Less generic error
-                print(str(e))
+                print(peer, str(e), flush=True)
 
             peers = peers.union(peer_peers)
             new_peer = False
@@ -262,7 +262,7 @@ class Application(tornado.web.Application):
             results = []
             # noinspection PyAsyncCall,PyTypeChecker
             await tornado.gen.multi([self.peer_worker(peers, peers_to_check, peers_to_check_set, results)
-                                     for _ in range(10)])
+                                     for _ in range(1)])
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
         for peer in peers:
