@@ -15,6 +15,7 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler, url
 
 CHORD_URL = os.environ.get("CHORD_URL")
+CHORD_REGISTRY_NODE_URL = "http://1.chord.dlougheed.com/"  # "http://127.0.0.1:5000/"
 TIMEOUT = 45
 WORKERS = 10
 LAST_ERRORED_CACHE_TIME = 30
@@ -32,8 +33,7 @@ def init_db():
 
     c = peer_db.cursor()
     c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_URL,))
-    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://1.chord.dlougheed.com/",))
-    # c.execute("INSERT OR IGNORE INTO peers VALUES(?)", ("http://127.0.0.1:5000/",))
+    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_REGISTRY_NODE_URL,))
 
     peer_db.commit()
 
@@ -142,7 +142,8 @@ class PeerHandler(RequestHandler):
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
                     self.application.last_errored[peer_url] = datetime.now().timestamp()
-                    print(peer_url, str(e), flush=True)
+                    print("[CHORD Federation {}] Error when processing notify from peer {}.\n"
+                          "    Error: {}".format(datetime.now(), peer_url, str(e)), flush=True)
 
                 finally:
                     attempted_contact.add(peer_url)
@@ -178,8 +179,8 @@ class SearchHandler(RequestHandler):
             except Exception as e:
                 # TODO: Less broad of an exception
                 responses.append(None)
-                print(str(e), flush=True)
-                print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer), flush=True)
+                print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
+                      "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
 
             finally:
                 peer_queue.task_done()
@@ -231,7 +232,7 @@ class Application(tornado.web.Application):
             if (peer in self.last_errored and
                     datetime.now().timestamp() - self.last_errored[peer] < LAST_ERRORED_CACHE_TIME):
                 # Avoid repetitively hitting dead nodes
-                print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
+                print("[CHORD Federation {}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
                 continue
@@ -244,13 +245,13 @@ class Application(tornado.web.Application):
                 continue
 
             if peer in self.contacting:
-                print("[{}] Avoiding race on peer {}".format(datetime.now(), peer), flush=True)
+                print("[CHORD Federation {}] Avoiding race on peer {}".format(datetime.now(), peer), flush=True)
                 # TODO: Do we call task_done() here?
                 continue
 
             self.contacting.add(peer)
 
-            print("[{}] Contacting peer {}".format(datetime.now(), peer), flush=True)
+            print("[CHORD Federation {}] Contacting peer {}".format(datetime.now(), peer), flush=True)
 
             peer_peers = []
 
@@ -274,11 +275,11 @@ class Application(tornado.web.Application):
                 peer_peers = json.loads(r.body)["peers"]
 
             except IndexError:
-                print(f"Error: Invalid 200 response returned by {peer}.", flush=True)
+                print(f"[CHORD Federation] Error: Invalid 200 response returned by {peer}.", flush=True)
 
             except Exception as e:
                 # TODO: Less generic error
-                print("Peer contact error for {}".format(peer), flush=True)
+                print("[CHORD Federation] Peer contact error for {}".format(peer), flush=True)
                 self.last_errored[peer] = datetime.now().timestamp()
                 print(peer, str(e), flush=True)
 
@@ -364,6 +365,10 @@ application = Application(peer_db, os.environ.get("BASE_URL", ""))
 
 
 def run():
+    if CHORD_URL is None:
+        print("[CHORD Federation] No CHORD URL given, terminating...")
+        exit(1)
+
     server = HTTPServer(application)
     server.add_socket(bind_unix_socket(os.environ.get("SOCKET", "/tmp/federation.sock")))
     tornado.ioloop.IOLoop.instance().start()
