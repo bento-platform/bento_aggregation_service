@@ -199,7 +199,7 @@ class SearchHandler(RequestHandler):
 
         responses = []
         # noinspection PyTypeChecker
-        workers = await tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
+        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
         await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
 
