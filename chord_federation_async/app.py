@@ -321,6 +321,10 @@ class Application(tornado.web.Application):
         c.execute("SELECT url FROM peers")
         peers = set([p[0] for p in c.fetchall()])
 
+        print(datetime.utcnow(), datetime.utcnow() - timedelta(hours=1), flush=True)
+        print(self.last_peers_update, flush=True)
+        print(self.peer_cache_invalidated, flush=True)
+
         if (datetime.utcnow() - timedelta(hours=1) > self.last_peers_update or self.peer_cache_invalidated) \
                 and not self.fetching_peers:
             self.fetching_peers = True
@@ -350,6 +354,7 @@ class Application(tornado.web.Application):
 
             await workers
 
+            print(self.peer_cache_invalidated, flush=True)
             print(results, flush=True)
             self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
 
