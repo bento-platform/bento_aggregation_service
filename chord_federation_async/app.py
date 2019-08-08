@@ -356,7 +356,7 @@ class Application(tornado.web.Application):
 
             print(self.peer_cache_invalidated, flush=True)
             print(results, flush=True)
-            self.peer_cache_invalidated = self.peer_cache_invalidated or [True in results]
+            self.peer_cache_invalidated = self.peer_cache_invalidated or (True in results)
 
             for peer in peers:
                 c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
