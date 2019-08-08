@@ -167,7 +167,6 @@ class SearchHandler(RequestHandler):
                 # Exit signal
                 return
 
-            print("starting peer {}".format(peer), flush=True)
             try:
                 r = await client.fetch(f"{peer}api/{search_path}", request_timeout=TIMEOUT, method="POST",
                                        body=self.request.body, headers={"Content-Type": "application/json"},
@@ -177,11 +176,10 @@ class SearchHandler(RequestHandler):
             except Exception as e:
                 # TODO: Less broad of an exception
                 responses.append(None)
-                print(str(e))
+                print(str(e), flush=True)
                 print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer), flush=True)
 
             finally:
-                print("finished peer {}".format(peer), flush=True)
                 peer_queue.task_done()
 
     async def post(self, search_path):
@@ -190,8 +188,6 @@ class SearchHandler(RequestHandler):
         c = self.application.db.cursor()
         peers = await self.application.get_peers(c)
         self.application.db.commit()
-
-        print("[{}] search {}".format(datetime.now(), search_path), flush=True)
 
         peer_queue = Queue()
         for peer in peers:
@@ -202,8 +198,6 @@ class SearchHandler(RequestHandler):
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
         await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
-
-        print("done", flush=True)
 
         try:
             self.write({
