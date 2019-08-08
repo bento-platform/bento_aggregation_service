@@ -191,6 +191,8 @@ class SearchHandler(RequestHandler):
         peers = await self.application.get_peers(c)
         self.application.db.commit()
 
+        print("[{}] search {}".format(datetime.now(), search_path))
+
         peer_queue = Queue()
         for peer in peers:
             await peer_queue.put(peer)
@@ -200,6 +202,8 @@ class SearchHandler(RequestHandler):
         workers = await tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
         await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
+
+        print("done")
 
         try:
             self.write({
@@ -214,7 +218,7 @@ class SearchHandler(RequestHandler):
 
         # Trigger exit for all workers
         for _ in range(10):
-            await peers_to_check.put(None)
+            await peer_queue.put(None)
 
         await workers
 
