@@ -8,7 +8,7 @@ import tornado.web
 
 from datetime import datetime, timedelta
 from itertools import chain
-from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+from tornado.httpclient import AsyncHTTPClient
 from tornado.httpserver import HTTPServer
 from tornado.netutil import bind_unix_socket
 from tornado.queues import Queue
@@ -167,7 +167,7 @@ class SearchHandler(RequestHandler):
                 # Exit signal
                 return
 
-            print("starting peer {}".format(peer))
+            print("starting peer {}".format(peer), flush=True)
             try:
                 r = await client.fetch(f"{peer}api/{search_path}", request_timeout=TIMEOUT, method="POST",
                                        body=self.request.body, headers={"Content-Type": "application/json"},
@@ -178,10 +178,10 @@ class SearchHandler(RequestHandler):
                 # TODO: Less broad of an exception
                 responses.append(None)
                 print(str(e))
-                print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer))
+                print("[CHORD Federation] Connection issue or timeout with peer {}.".format(peer), flush=True)
 
             finally:
-                print("finished peer {}".format(peer))
+                print("finished peer {}".format(peer), flush=True)
                 peer_queue.task_done()
 
     async def post(self, search_path):
@@ -191,7 +191,7 @@ class SearchHandler(RequestHandler):
         peers = await self.application.get_peers(c)
         self.application.db.commit()
 
-        print("[{}] search {}".format(datetime.now(), search_path))
+        print("[{}] search {}".format(datetime.now(), search_path), flush=True)
 
         peer_queue = Queue()
         for peer in peers:
@@ -203,7 +203,7 @@ class SearchHandler(RequestHandler):
         await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
 
-        print("done")
+        print("done", flush=True)
 
         try:
             self.write({
