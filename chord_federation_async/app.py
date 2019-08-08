@@ -146,8 +146,7 @@ class PeerHandler(RequestHandler):
 
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
-                    self.application.last_errored[peer_url] = self.application.last_errored.get(
-                        peer_url, datetime.now().timestamp())
+                    self.application.last_errored[peer_url] = datetime.now().timestamp()
                     print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
                     print("===")
@@ -287,7 +286,7 @@ class Application(tornado.web.Application):
             except Exception as e:
                 # TODO: Less generic error
                 print("Peer contact error for {}".format(peer), flush=True)
-                self.last_errored[peer] = self.last_errored.get(peer, datetime.now().timestamp())
+                self.last_errored[peer] = datetime.now().timestamp()
                 print(peer, str(e), flush=True)
 
             peers = peers.union(peer_peers)
