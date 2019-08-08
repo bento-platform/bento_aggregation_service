@@ -16,6 +16,8 @@ from tornado.web import RequestHandler, url
 
 CHORD_URL = os.environ.get("CHORD_URL")
 TIMEOUT = 45
+WORKERS = 10
+LAST_ERRORED_CACHE_TIME = 30
 
 db_path = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
@@ -121,8 +123,8 @@ class PeerHandler(RequestHandler):
                 if peer_url in attempted_contact:
                     continue
 
-                if peer_url in self.application.last_errored and \
-                        datetime.now().timestamp() - self.application.last_errored[peer_url] < 30:
+                if (peer_url in self.application.last_errored and
+                        datetime.now().timestamp() - self.application.last_errored[peer_url] < LAST_ERRORED_CACHE_TIME):
                     # Avoid repetitively hitting dead nodes
                     continue
 
@@ -195,7 +197,7 @@ class SearchHandler(RequestHandler):
 
         responses = []
         # noinspection PyTypeChecker
-        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
+        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
         await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
 
@@ -211,7 +213,7 @@ class SearchHandler(RequestHandler):
             self.set_status(400)
 
         # Trigger exit for all workers
-        for _ in range(10):
+        for _ in range(WORKERS):
             await peer_queue.put(None)
 
         await workers
@@ -226,7 +228,8 @@ class Application(tornado.web.Application):
                 # Exit signal
                 return
 
-            if peer in self.last_errored and datetime.now().timestamp() - self.last_errored[peer] < 30:
+            if (peer in self.last_errored and
+                    datetime.now().timestamp() - self.last_errored[peer] < LAST_ERRORED_CACHE_TIME):
                 # Avoid repetitively hitting dead nodes
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
                 peers_to_check_set.remove(peer)
@@ -318,7 +321,7 @@ class Application(tornado.web.Application):
             # noinspection PyAsyncCall,PyTypeChecker
             workers = tornado.gen.multi([
                 self.peer_worker(peers, peers_to_check, peers_to_check_set, attempted_contact, results)
-                for _ in range(10)])
+                for _ in range(WORKERS)])
 
             # Wait for all peers to be processed
             await peers_to_check.join()
@@ -331,7 +334,7 @@ class Application(tornado.web.Application):
             self.fetching_peers = False
 
             # Trigger exit for all workers
-            for _ in range(10):
+            for _ in range(WORKERS):
                 await peers_to_check.put(None)
 
             await workers
