@@ -17,9 +17,6 @@ from tornado.web import RequestHandler, url
 CHORD_URL = os.environ.get("CHORD_URL")
 TIMEOUT = 45
 
-print(CHORD_URL, flush=True)
-print(dict(os.environ), flush=True)
-
 db_path = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
 db_exists = os.path.exists(db_path)
@@ -130,14 +127,10 @@ class PeerHandler(RequestHandler):
                     continue
 
                 try:
-                    print("Trying to get {}'s URL...".format(peer_url), flush=True)
-
                     r = await client.fetch(f"{peer_url}api/federation/service-info?update_peers=false",
                                            request_timeout=TIMEOUT)
 
                     if json.loads(r.body)["type"] == "urn:chord:federation":
-                        print("Success for {} URL.".format(peer_url), flush=True)
-
                         # Peer two-way communication is possible
                         c.execute("SELECT 1 FROM peers WHERE url = ?", (peer_url,))
                         new_pci = new_pci or c.fetchone() is None
@@ -147,9 +140,7 @@ class PeerHandler(RequestHandler):
                 except Exception as e:
                     # TODO: Better / more compliant error message, don't return early
                     self.application.last_errored[peer_url] = datetime.now().timestamp()
-                    print("--- {} ---".format(CHORD_URL))
                     print(peer_url, str(e), flush=True)
-                    print("===")
 
                 finally:
                     attempted_contact.add(peer_url)
@@ -172,6 +163,10 @@ class SearchHandler(RequestHandler):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
+            if peer is None:
+                # Exit signal
+                return
+
             print("starting peer {}".format(peer))
             try:
                 r = await client.fetch(f"{peer}api/{search_path}", request_timeout=TIMEOUT, method="POST",
@@ -188,8 +183,6 @@ class SearchHandler(RequestHandler):
             finally:
                 print("finished peer {}".format(peer))
                 peer_queue.task_done()
-                if peer_queue.qsize() == 0:
-                    return
 
     async def post(self, search_path):
         # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
@@ -204,7 +197,8 @@ class SearchHandler(RequestHandler):
 
         responses = []
         # noinspection PyTypeChecker
-        await tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
+        workers = await tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(10)])
+        await peer_queue.join()
         good_responses = [r for r in responses if r is not None]
 
         try:
@@ -217,6 +211,12 @@ class SearchHandler(RequestHandler):
             # TODO: Better / more compliant error message
             self.clear()
             self.set_status(400)
+
+        # Trigger exit for all workers
+        for _ in range(10):
+            await peers_to_check.put(None)
+
+        await workers
 
 
 class Application(tornado.web.Application):
@@ -233,8 +233,6 @@ class Application(tornado.web.Application):
                 print("[{}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
-                # if peers_to_check.qsize() == 0:
-                #     return
                 continue
 
             if peer in attempted_contact:
@@ -256,8 +254,6 @@ class Application(tornado.web.Application):
             peer_peers = []
 
             try:
-                print("Notifying {}...".format(peer), flush=True)
-
                 await client.fetch(
                     f"{peer}api/federation/peers",
                     request_timeout=TIMEOUT,
@@ -267,8 +263,6 @@ class Application(tornado.web.Application):
                     raise_error=True
                 )
 
-                print("Trying to get {} peers...".format(peer), flush=True)
-
                 r = await client.fetch(f"{peer}api/federation/peers",
                                        method="GET",
                                        request_timeout=TIMEOUT)
@@ -277,8 +271,6 @@ class Application(tornado.web.Application):
 
                 self.connected_to_peer_network = True
                 peer_peers = json.loads(r.body)["peers"]
-
-                print("Done for {}".format(peer), flush=True)
 
             except IndexError:
                 print(f"Error: Invalid 200 response returned by {peer}.", flush=True)
@@ -292,15 +284,10 @@ class Application(tornado.web.Application):
             peers = peers.union(peer_peers)
             new_peer = False
 
-            print("[{}] At peer peers loop for {}".format(CHORD_URL, peer), flush=True)
-            print(peer_peers, peers_to_check.qsize(), len(list(peers_to_check_set)), flush=True)
-
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in self.contacting and p not in attempted_contact:
                     new_peer = True
-                    print("[{}] Trying to put {}".format(CHORD_URL, p), flush=True)
                     await peers_to_check.put(p)
-                    print("[{}] Done for {}".format(CHORD_URL, p), flush=True)
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
@@ -311,19 +298,9 @@ class Application(tornado.web.Application):
             peers_to_check_set.remove(peer)
             peers_to_check.task_done()
 
-            print("[{}] Queue size: {}, {}".format(peer, peers_to_check.qsize(), len(list(peers_to_check_set))),
-                  flush=True)
-
-            # if peers_to_check.qsize() == 0:
-            #     return
-
     async def get_peers(self, c):
         c.execute("SELECT url FROM peers")
         peers = set([p[0] for p in c.fetchall()])
-
-        print(datetime.utcnow(), datetime.utcnow() - timedelta(hours=1), flush=True)
-        print(self.last_peers_update, flush=True)
-        print(self.peer_cache_invalidated, flush=True)
 
         if (datetime.utcnow() - timedelta(hours=1) > self.last_peers_update or self.peer_cache_invalidated) \
                 and not self.fetching_peers:
@@ -348,20 +325,18 @@ class Application(tornado.web.Application):
             # Wait for all peers to be processed
             await peers_to_check.join()
 
-            for _ in range(10):
-                # Trigger exit for all workers
-                await peers_to_check.put(None)
-
-            await workers
-
-            print(self.peer_cache_invalidated, flush=True)
-            print(results, flush=True)
             self.peer_cache_invalidated = self.peer_cache_invalidated or (True in results)
 
             for peer in peers:
                 c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
 
             self.fetching_peers = False
+
+            # Trigger exit for all workers
+            for _ in range(10):
+                await peers_to_check.put(None)
+
+            await workers
 
         return peers
 
