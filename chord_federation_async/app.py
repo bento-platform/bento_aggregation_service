@@ -69,7 +69,7 @@ class ServiceInfoHandler(RequestHandler):
         self.write({
             "id": "ca.distributedgenomics.chord_federation",  # TODO: Should be globally unique
             "name": "CHORD Federation",  # TODO: Should be globally unique
-            "type": "urn:chord:federation",  # TODO
+            "type": "ca.distributedgenomics:chord_federation:{}".format(chord_federation_async.__version__),  # TODO
             "description": "Federation service for a CHORD application.",
             "organization": "GenAP",
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
@@ -132,7 +132,8 @@ class PeerHandler(RequestHandler):
                     r = await client.fetch(f"{peer_url}api/federation/service-info?update_peers=false",
                                            request_timeout=TIMEOUT)
 
-                    if json.loads(r.body)["type"] == "urn:chord:federation":
+                    # TODO: Check semver for compatibility
+                    if "ca.distributedgenomics:chord_federation" in json.loads(r.body)["type"]:
                         # Peer two-way communication is possible
                         c.execute("SELECT 1 FROM peers WHERE url = ?", (peer_url,))
                         new_pci = new_pci or c.fetchone() is None
