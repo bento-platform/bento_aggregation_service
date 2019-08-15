@@ -15,7 +15,7 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler, url
 
 CHORD_URL = os.environ.get("CHORD_URL")
-CHORD_REGISTRY_NODE_URL = "http://1.chord.dlougheed.com/"  # "http://127.0.0.1:5000/"
+CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "http://127.0.0.1:5000/")  # "http://1.chord.dlougheed.com/"
 TIMEOUT = 45
 WORKERS = 10
 LAST_ERRORED_CACHE_TIME = 30
@@ -33,7 +33,7 @@ def init_db():
 
     c = peer_db.cursor()
     c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_URL,))
-    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_REGISTRY_NODE_URL,))
+    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_REGISTRY_URL,))
 
     peer_db.commit()
 
