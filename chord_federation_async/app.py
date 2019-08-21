@@ -76,8 +76,7 @@ class ServiceInfoHandler(RequestHandler):
                 "url": "https://genap.ca/"
             },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
-            "version": chord_federation_async.__version__,
-            "extension": {}
+            "version": chord_federation_async.__version__
         })
 
 
