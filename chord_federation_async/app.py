@@ -71,7 +71,10 @@ class ServiceInfoHandler(RequestHandler):
             "name": "CHORD Federation",  # TODO: Should be globally unique
             "type": "ca.distributedgenomics:chord_federation:{}".format(chord_federation_async.__version__),  # TODO
             "description": "Federation service for a CHORD application.",
-            "organization": "GenAP",
+            "organization": {
+                "name": "GenAP",
+                "url": "https://genap.ca/"
+            },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
             "version": chord_federation_async.__version__,
             "extension": {}
