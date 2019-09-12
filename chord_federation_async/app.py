@@ -28,7 +28,7 @@ peer_db.row_factory = sqlite3.Row
 
 
 def init_db():
-    with open(os.path.join("chord_federation_async", "schema.sql"), "r") as sf:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql"), "r") as sf:
         peer_db.executescript(sf.read())
 
     c = peer_db.cursor()
