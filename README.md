@@ -1,1 +1,3 @@
-# chord_federation_async
+# CHORD Federation
+
+A service for federated search between CHORD nodes.
