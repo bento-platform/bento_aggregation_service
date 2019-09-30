@@ -2,13 +2,13 @@
 
 import setuptools
 
-from chord_federation_async import __version__
+from chord_federation import __version__
 
 with open("README.md", "r") as rf:
     long_description = rf.read()
 
 setuptools.setup(
-    name="chord_federation_async",
+    name="chord_federation",
     version=__version__,
 
     python_requires=">=3.6",
@@ -21,11 +21,11 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
 
-    packages=["chord_federation_async"],
+    packages=["chord_federation"],
     include_package_data=True,
 
     entry_points={
-        "console_scripts": ["chord_federation_async=chord_federation_async.app:run"]
+        "console_scripts": ["chord_federation=chord_federation.app:run"]
     },
 
     url="TODO",

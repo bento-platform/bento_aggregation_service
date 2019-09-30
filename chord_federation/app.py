@@ -1,4 +1,4 @@
-import chord_federation_async
+import chord_federation
 import json
 import os
 import sqlite3
@@ -69,14 +69,14 @@ class ServiceInfoHandler(RequestHandler):
         self.write({
             "id": "ca.distributedgenomics.chord_federation",  # TODO: Should be globally unique
             "name": "CHORD Federation",  # TODO: Should be globally unique
-            "type": "ca.distributedgenomics:chord_federation:{}".format(chord_federation_async.__version__),  # TODO
+            "type": "ca.distributedgenomics:chord_federation:{}".format(chord_federation.__version__),  # TODO
             "description": "Federation service for a CHORD application.",
             "organization": {
                 "name": "GenAP",
                 "url": "https://genap.ca/"
             },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
-            "version": chord_federation_async.__version__
+            "version": chord_federation.__version__
         })
 
 

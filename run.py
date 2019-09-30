@@ -4,7 +4,7 @@ import os
 import tornado.ioloop
 
 
-from chord_federation_async.app import application
+from chord_federation.app import application
 
 if __name__ == "__main__":
     application.listen(int(os.environ.get("PORT", "5000")))
