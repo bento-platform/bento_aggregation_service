@@ -22,7 +22,7 @@ CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "http://127.0.0.1:5000
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 
-CHORD_URL_SET = CHORD_URL is None or os.environ.get("CHORD_URL", "").strip() == ""
+CHORD_URL_SET = CHORD_URL is not None and os.environ.get("CHORD_URL", "").strip() != ""
 
 TIMEOUT = 45
 WORKERS = 10
