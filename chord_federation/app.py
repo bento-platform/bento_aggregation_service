@@ -40,20 +40,20 @@ class ServiceInfoHandler(RequestHandler):
 
 
 class Application(tornado.web.Application):
-    def __init__(self, db, base_url):
+    def __init__(self, db, base_path):
         self.db = db
         self.peer_manager = PeerManager()
 
         handlers = [
-            url(f"{base_url}/service-info", ServiceInfoHandler),
-            url(f"{base_url}/peers", PeerHandler),
-            url(f"{base_url}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
+            url(f"{base_path}/service-info", ServiceInfoHandler),
+            url(f"{base_path}/peers", PeerHandler),
+            url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
         ]
 
         super(Application, self).__init__(handlers)
 
 
-application = Application(peer_db, os.environ.get("BASE_URL", ""))
+application = Application(peer_db, BASE_PATH)
 
 
 def run():
