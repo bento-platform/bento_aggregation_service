@@ -7,7 +7,7 @@ from .constants import CHORD_URL, CHORD_REGISTRY_URL
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
 db_exists = os.path.exists(DB_PATH)
-peer_db = sqlite3.connect(os.environ.get("DATABASE", "data/federation.db"), detect_types=sqlite3.PARSE_DECLTYPES)
+peer_db = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
 peer_db.row_factory = sqlite3.Row
 
 
