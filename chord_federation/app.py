@@ -1,5 +1,4 @@
 import chord_federation
-import os
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -57,10 +56,10 @@ application = Application(peer_db, BASE_PATH)
 
 
 def run():
-    if CHORD_URL is None or CHORD_URL == "":
+    if not CHORD_URL_SET:
         print("[CHORD Federation] No CHORD URL given, terminating...")
         exit(1)
 
     server = HTTPServer(application)
-    server.add_socket(bind_unix_socket(os.environ.get("SOCKET", "/tmp/federation.sock")))
+    server.add_socket(bind_unix_socket(SERVICE_SOCKET))
     tornado.ioloop.IOLoop.instance().start()

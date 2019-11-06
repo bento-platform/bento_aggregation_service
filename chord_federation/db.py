@@ -1,10 +1,8 @@
 import os
 import sqlite3
 
-from .constants import CHORD_URL, CHORD_REGISTRY_URL
+from .constants import CHORD_URL, CHORD_REGISTRY_URL, DB_PATH
 
-
-DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
 db_exists = os.path.exists(DB_PATH)
 peer_db = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)

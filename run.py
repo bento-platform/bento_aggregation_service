@@ -5,9 +5,10 @@ import tornado.ioloop
 
 
 from chord_federation.app import application
+from chord_federation.constants import CHORD_URL_SET
 
 if __name__ == "__main__":
-    if os.environ.get("CHORD_URL", None) is None:
+    if not CHORD_URL_SET:
         print("[CHORD Federation] No CHORD URL given, terminating...")
         exit(1)
 

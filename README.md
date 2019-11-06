@@ -4,8 +4,6 @@ A service for federated search between CHORD nodes.
 
 ## Environment Variables
 
-`BASE_PATH`: Base URL fragment (e.g. `/test/`) for endpoints
-
 `DATABASE`: Defaults to `data/federation.db`
 
 `CHORD_URL`: Defaults to `http://127.0.0.1:5000/`
@@ -13,5 +11,7 @@ A service for federated search between CHORD nodes.
 `CHORD_REGISTRY_URL`: Defaults to `http://127.0.0.1:5000/`
 
 `PORT`: Specified when running via `./run.py`; defaults to `5000`
+
+`SERVICE_URL_BASE_PATH`: Base URL fragment (e.g. `/test/`) for endpoints
 
 `SOCKET`: Specifies Unix socket location for production deployment
