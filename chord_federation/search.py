@@ -38,6 +38,18 @@ class SearchHandler(RequestHandler):
     async def post(self, search_path: str):
         # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
 
+        request = None
+
+        try:
+            request = json.loads(self.request.body)
+        except json.JSONDecodeError:
+            # TODO: Better / more compliant error message
+            self.set_status(400)
+
+        # TODO: Validate against a JSON schema or OpenAPI
+        if not isinstance(request, dict):
+            return
+
         c = self.application.db.cursor()
         peers = await self.application.get_peers(c)
         self.application.db.commit()
