@@ -56,8 +56,8 @@ application = Application(peer_db, BASE_PATH)
 
 
 def run():
-    if not CHORD_URL_SET:
-        print("[CHORD Federation] No CHORD URL given, terminating...")
+    if not CHORD_URLS_SET:
+        print("[CHORD Federation] No CHORD URLs given, terminating...")
         exit(1)
 
     server = HTTPServer(application)
