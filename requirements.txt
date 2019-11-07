@@ -1,1 +1,2 @@
+git+https://github.com/c3g/chord_lib
 tornado==6.0.3
