@@ -11,6 +11,15 @@ from .db import check_peer_exists, insert_or_ignore_peer
 
 
 class PeerManager:
+    def __init__(self):
+        self.last_peers_update = datetime.utcfromtimestamp(0)
+        self.peer_cache_invalidated = False
+        self.connected_to_peer_network = False
+        self.fetching_peers = False
+        self.last_errored = {}
+        self.contacting = set()
+        self.notifying = set()
+
     async def peer_worker(self, peers, peers_to_check, peers_to_check_set, attempted_contact, results):
         client = AsyncHTTPClient()
 
@@ -132,15 +141,6 @@ class PeerManager:
             await workers
 
         return peers
-
-    def __init__(self):
-        self.last_peers_update = datetime.utcfromtimestamp(0)
-        self.peer_cache_invalidated = False
-        self.connected_to_peer_network = False
-        self.fetching_peers = False
-        self.last_errored = {}
-        self.contacting = set()
-        self.notifying = set()
 
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
