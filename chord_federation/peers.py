@@ -64,9 +64,7 @@ class PeerManager:
                     raise_error=True
                 )
 
-                r = await client.fetch(f"{peer}api/federation/peers",
-                                       method="GET",
-                                       request_timeout=TIMEOUT)
+                r = await client.fetch(f"{peer}api/federation/peers", method="GET", request_timeout=TIMEOUT)
 
                 # If a non-200 response is encountered, an error is raised
 
