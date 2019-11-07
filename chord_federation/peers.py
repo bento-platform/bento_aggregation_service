@@ -110,13 +110,13 @@ class PeerManager:
 
             # Peer queue
             peers_to_check = Queue()
-            peers_to_check_set = set()
             for p in peers:
-                peers_to_check_set.add(p)
                 peers_to_check.put_nowait(p)
 
-            results = []
-            attempted_contact = {CHORD_URL}
+            peers_to_check_set: Set[str] = peers.copy()
+
+            results: List[bool] = []
+            attempted_contact: Set[str] = {CHORD_URL}
 
             # noinspection PyAsyncCall,PyTypeChecker
             workers = tornado.gen.multi([
