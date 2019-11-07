@@ -7,6 +7,7 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler
 
 from .constants import *
+from .db import check_peer_exists, insert_or_ignore_peer
 
 
 class PeerManager:
@@ -118,8 +119,9 @@ class PeerManager:
 
             self.peer_cache_invalidated = self.peer_cache_invalidated or (True in results)
 
+            # Store any new peers in the possibly augmented set
             for peer in peers:
-                c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (peer,))
+                insert_or_ignore_peer(c, peer)
 
             self.fetching_peers = False
 
@@ -199,9 +201,8 @@ class PeerHandler(RequestHandler):
                     # TODO: Check semver for compatibility
                     if "ca.distributedgenomics:chord_federation" in json.loads(r.body)["type"]:
                         # Peer two-way communication is possible
-                        c.execute("SELECT 1 FROM peers WHERE url = ?", (peer_url,))
-                        new_pci = new_pci or c.fetchone() is None
-                        c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (peer_url,))
+                        new_pci = new_pci or not check_peer_exists(c, peer_url)
+                        insert_or_ignore_peer(c, peer_url)
                         self.application.db.commit()
 
                 except Exception as e:

@@ -9,9 +9,18 @@ peer_db = sqlite3.connect(DB_PATH, detect_types=sqlite3.PARSE_DECLTYPES)
 peer_db.row_factory = sqlite3.Row
 
 
+def check_peer_exists(c, url) -> bool:
+    c.execute("SELECT 1 FROM peers WHERE url = ?", (url,))
+    return c.fetchone() is not None
+
+
+def insert_or_ignore_peer(c, n):
+    c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (n,))
+
+
 def insert_or_ignore_fixed_nodes(c):
-    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_URL,))
-    c.execute("INSERT OR IGNORE INTO peers VALUES(?)", (CHORD_REGISTRY_URL,))
+    insert_or_ignore_peer(c, CHORD_URL)
+    insert_or_ignore_peer(c, CHORD_REGISTRY_URL)
 
     peer_db.commit()
 
