@@ -51,7 +51,7 @@ class SearchHandler(RequestHandler):
             return
 
         c = self.application.db.cursor()
-        peers = await self.application.get_peers(c)
+        peers = await self.application.peer_manager.get_peers(c)
         self.application.db.commit()
 
         peer_queue = Queue()
