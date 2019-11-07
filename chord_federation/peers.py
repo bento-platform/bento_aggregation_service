@@ -86,7 +86,7 @@ class PeerManager:
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in self.contacting and p not in attempted_contact:
                     new_peer = True
-                    await peers_to_check.put(p)
+                    peers_to_check.put_nowait(p)
                     peers_to_check_set.add(p)
 
             results.append(new_peer)
@@ -110,8 +110,8 @@ class PeerManager:
             peers_to_check = Queue()
             peers_to_check_set = set()
             for p in peers:
-                await peers_to_check.put(p)
                 peers_to_check_set.add(p)
+                peers_to_check.put_nowait(p)
 
             results = []
             attempted_contact = {CHORD_URL}
@@ -134,8 +134,9 @@ class PeerManager:
 
             # Trigger exit for all workers
             for _ in range(WORKERS):
-                await peers_to_check.put(None)
+                peers_to_check.put_nowait(None)
 
+            # Wait for workers to exit
             await workers
 
         return peers
