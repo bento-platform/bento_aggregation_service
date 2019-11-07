@@ -44,7 +44,7 @@ class SearchHandler(RequestHandler):
 
         peer_queue = Queue()
         for peer in peers:
-            await peer_queue.put(peer)
+            peer_queue.put_nowait(peer)
 
         responses = []
         # noinspection PyTypeChecker
@@ -65,7 +65,7 @@ class SearchHandler(RequestHandler):
 
         # Trigger exit for all workers
         for _ in range(WORKERS):
-            await peer_queue.put(None)
+            peer_queue.put_nowait(None)
 
         # Wait for workers to exit
         await workers
