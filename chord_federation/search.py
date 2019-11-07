@@ -10,7 +10,7 @@ from tornado.web import RequestHandler
 from .constants import TIMEOUT, WORKERS
 
 
-# noinspection PyAbstractClass,PyAttributeOutsideInit
+# noinspection PyAbstractClass
 class SearchHandler(RequestHandler):
     async def search_worker(self, peer_queue: Queue, search_path: str, responses: list):
         client = AsyncHTTPClient()
@@ -59,7 +59,6 @@ class SearchHandler(RequestHandler):
             peer_queue.put_nowait(peer)
 
         responses = []
-        # noinspection PyTypeChecker
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
         await peer_queue.join()
         good_responses = tuple(r for r in responses if r is not None)
