@@ -12,7 +12,7 @@ from .constants import TIMEOUT, WORKERS
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class SearchHandler(RequestHandler):
-    async def search_worker(self, peer_queue, search_path, responses):
+    async def search_worker(self, peer_queue: Queue, search_path: str, responses: list):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
@@ -35,7 +35,7 @@ class SearchHandler(RequestHandler):
             finally:
                 peer_queue.task_done()
 
-    async def post(self, search_path):
+    async def post(self, search_path: str):
         # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
 
         c = self.application.db.cursor()
@@ -67,4 +67,5 @@ class SearchHandler(RequestHandler):
         for _ in range(WORKERS):
             await peer_queue.put(None)
 
+        # Wait for workers to exit
         await workers

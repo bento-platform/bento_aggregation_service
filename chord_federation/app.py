@@ -39,7 +39,7 @@ class ServiceInfoHandler(RequestHandler):
 
 
 class Application(tornado.web.Application):
-    def __init__(self, db, base_path):
+    def __init__(self, db, base_path: str):
         self.db = db
         self.peer_manager = PeerManager()
 

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 from tornado.web import RequestHandler
+from typing import Dict, List, Set
 
 from .constants import *
 from .db import check_peer_exists, insert_or_ignore_peer
@@ -16,11 +17,12 @@ class PeerManager:
         self.peer_cache_invalidated = False
         self.connected_to_peer_network = False
         self.fetching_peers = False
-        self.last_errored = {}
-        self.contacting = set()
-        self.notifying = set()
+        self.last_errored: Dict[str, float] = {}
+        self.contacting: Set[str] = set()
+        self.notifying: Set[str] = set()
 
-    async def peer_worker(self, peers, peers_to_check, peers_to_check_set, attempted_contact, results):
+    async def peer_worker(self, peers: Set[str], peers_to_check: Queue, peers_to_check_set: Set[str],
+                          attempted_contact: Set[str], results: List[bool]):
         client = AsyncHTTPClient()
 
         async for peer in peers_to_check:
@@ -52,7 +54,7 @@ class PeerManager:
 
             print("[CHORD Federation {}] Contacting peer {}".format(datetime.now(), peer), flush=True)
 
-            peer_peers = []
+            peer_peers: List[str] = []
 
             try:
                 await client.fetch(
@@ -97,9 +99,9 @@ class PeerManager:
             peers_to_check_set.remove(peer)
             peers_to_check.task_done()
 
-    async def get_peers(self, c):
+    async def get_peers(self, c) -> Set[str]:
         c.execute("SELECT url FROM peers")
-        peers = set([p[0] for p in c.fetchall()])
+        peers: Set[str] = set(p[0] for p in c.fetchall())
 
         if (datetime.utcnow() - timedelta(hours=1) > self.last_peers_update or self.peer_cache_invalidated) \
                 and not self.fetching_peers:
