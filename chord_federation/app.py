@@ -25,13 +25,13 @@ class ServiceInfoHandler(RequestHandler):
             self.application.db.commit()
 
         self.write({
-            "id": "ca.distributedgenomics.chord_federation",  # TODO: Should be globally unique
-            "name": "CHORD Federation",  # TODO: Should be globally unique
-            "type": "ca.distributedgenomics:chord_federation:{}".format(chord_federation.__version__),  # TODO
+            "id": SERVICE_ID,
+            "name": "CHORD Federation",  # TODO: Should be globally unique?
+            "type": SERVICE_TYPE,
             "description": "Federation service for a CHORD application.",
             "organization": {
-                "name": "GenAP",
-                "url": "https://genap.ca/"
+                "name": "C3G",
+                "url": "http://www.computationalgenomics.ca"
             },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
             "version": chord_federation.__version__

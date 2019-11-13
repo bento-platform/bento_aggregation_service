@@ -200,7 +200,7 @@ class PeerHandler(RequestHandler):
                                            request_timeout=TIMEOUT)
 
                     # TODO: Check semver for compatibility
-                    if "ca.distributedgenomics:chord_federation" in json.loads(r.body)["type"]:
+                    if "ca.c3g.chord:federation" in json.loads(r.body)["type"]:
                         # Peer two-way communication is possible
                         new_pci = new_pci or not check_peer_exists(c, peer_url)
                         insert_or_ignore_peer(c, peer_url)
