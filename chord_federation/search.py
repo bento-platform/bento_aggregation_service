@@ -207,8 +207,9 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             # Metadata service error
             self.set_status(500)
 
-        except (TypeError, ValueError, SyntaxError):  # errors from query processing
+        except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
             # TODO: Better / more compliant error message
+            print(str(e))
             self.set_status(400)
 
 
