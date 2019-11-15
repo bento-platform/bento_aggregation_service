@@ -66,6 +66,10 @@ class SearchHandler(RequestHandler):
             finally:
                 peer_queue.task_done()
 
+    async def options(self):
+        self.set_status(204)
+        await self.finish()
+
     async def post(self, search_path: str):
         # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
 
@@ -95,6 +99,8 @@ class SearchHandler(RequestHandler):
             self.clear()
             self.set_status(400)
 
+        await self.finish()
+
         # Trigger exit for all workers
         for _ in range(WORKERS):
             peer_queue.put_nowait(None)
@@ -116,6 +122,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
     """
     Aggregates tables into datasets and runs a query against the data.
     """
+
+    async def options(self):
+        self.set_status(204)
+        await self.finish()
 
     async def post(self):
         request = get_request_json(self.request.body)
@@ -196,12 +206,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         except HTTPError:
             # Metadata service error
             self.set_status(500)
-            return
 
         except (TypeError, ValueError, SyntaxError):  # errors from query processing
             # TODO: Better / more compliant error message
             self.set_status(400)
-            return
 
 
 # noinspection PyAbstractClass
@@ -219,6 +227,10 @@ class FederatedDatasetSearchHandler(RequestHandler):
                 responses.append(None)
                 print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
                       "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
+
+    async def options(self):
+        self.set_status(204)
+        await self.finish()
 
     async def post(self):
         request = get_request_json(self.request.body)
@@ -254,6 +266,8 @@ class FederatedDatasetSearchHandler(RequestHandler):
                 self.clear()
                 self.set_status(400)
 
+            await self.finish()
+
             # Trigger exit for all workers
             for _ in range(WORKERS):
                 peer_queue.put_nowait(None)
@@ -264,4 +278,4 @@ class FederatedDatasetSearchHandler(RequestHandler):
         except (TypeError, ValueError, SyntaxError):  # errors from query processing
             # TODO: Better / more compliant error message
             self.set_status(400)
-            return
+            await self.finish()

@@ -146,6 +146,10 @@ class PeerManager:
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class PeerHandler(RequestHandler):
+    async def options(self):
+        self.set_status(204)
+        await self.finish()
+
     async def get(self):
         c = self.application.db.cursor()
         peers = await self.application.peer_manager.get_peers(c)
@@ -219,7 +223,7 @@ class PeerHandler(RequestHandler):
 
             self.application.peer_manager.peer_cache_invalidated = new_pci
             self.clear()
-            self.set_status(200)
+            self.set_status(204)
 
         except IndexError:
             # TODO: Better / more compliant error message
