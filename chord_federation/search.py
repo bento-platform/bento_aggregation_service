@@ -219,6 +219,10 @@ class FederatedDatasetSearchHandler(RequestHandler):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
+            if peer is None:
+                # Exit signal
+                return
+
             try:
                 responses.append(await peer_fetch(client, peer, "api/federation/dataset-search",
                                                   request_body=request_body, method="POST"))
@@ -227,6 +231,9 @@ class FederatedDatasetSearchHandler(RequestHandler):
                 responses.append(None)
                 print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
                       "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
+
+            finally:
+                peer_queue.task_done()
 
     async def options(self):
         self.set_status(204)
