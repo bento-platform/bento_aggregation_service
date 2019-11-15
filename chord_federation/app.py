@@ -10,7 +10,7 @@ from tornado.web import RequestHandler, url
 from .constants import *
 from .db import peer_db
 from .peers import PeerManager, PeerHandler
-from .search import SearchHandler
+from .search import DatasetSearchHandler, FederatedDatasetSearchHandler, SearchHandler
 
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
@@ -46,6 +46,8 @@ class Application(tornado.web.Application):
         handlers = [
             url(f"{base_path}/service-info", ServiceInfoHandler),
             url(f"{base_path}/peers", PeerHandler),
+            url(f"{base_path}/dataset-search", DatasetSearchHandler),
+            url(f"{base_path}/federated-dataset-search", FederatedDatasetSearchHandler),
             url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
         ]
 
