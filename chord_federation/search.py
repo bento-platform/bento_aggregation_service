@@ -159,42 +159,41 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 peer_fetch(client, CHORD_URL, "api/metadata/api/table_ownership", method="GET")
             )
 
-            datasets_dict = {d["dataset_id"]: d for d in datasets}
-            dataset_objects_dict = {d["dataset_id"]: {} for d in datasets}
+            datasets_dict = {d["dataset_id"]: d for d in datasets["results"]}
+            dataset_objects_dict = {d["dataset_id"]: {} for d in datasets["results"]}
 
             dataset_object_schema = {
                 "type": "object",
                 "properties": {}
             }
 
-            for t in table_ownerships:  # TODO: Query worker
+            for t in table_ownerships["results"]:  # TODO: Query worker
                 if t["dataset"] not in datasets_dict:
                     # TODO: error
                     continue
 
-                if "tables" not in datasets[t["dataset"]]:
-                    datasets[t["dataset"]]["tables"] = []
+                if "tables" not in datasets_dict[t["dataset"]]:
+                    datasets_dict[t["dataset"]]["tables"] = []
 
                 if t["data_type"] not in dataset_object_schema["properties"]:
                     dataset_object_schema["properties"][t["data_type"]] = {
                         "type": "array",
-                        "items": await peer_fetch(
+                        "items": (await peer_fetch(
                             client,
                             CHORD_URL,
-                            f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
-                            request_body=json.dumps({"query": data_type_queries[t["data_type"]]}),
-                            method="POST"
-                        ) if t["data_type"] in data_type_queries else {}
+                            f"api/{t['service_artifact']}/data-types/{t['data_type']}/schema",
+                            method="GET"
+                        )) if t["data_type"] in data_type_queries else {}
                     }
 
                 if t["data_type"] not in dataset_objects_dict[t["dataset"]]:
-                    dataset_objects_dict[t["dataset"]][t["data_type"]] = await peer_fetch(
+                    dataset_objects_dict[t["dataset"]][t["data_type"]] = (await peer_fetch(
                         client,
                         CHORD_URL,
                         f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
                         request_body=json.dumps({"query": data_type_queries[t["data_type"]]}),
                         method="POST"
-                    ) if t["data_type"] in data_type_queries else []
+                    ))["results"] if t["data_type"] in data_type_queries else []
 
             for d, s in dataset_objects_dict.items():  # TODO: Worker
                 result = check_ast_against_data_structure(query_ast, s, dataset_object_schema)
