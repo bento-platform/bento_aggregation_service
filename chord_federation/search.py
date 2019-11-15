@@ -215,13 +215,13 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 # noinspection PyAbstractClass
 class FederatedDatasetSearchHandler(RequestHandler):
     @staticmethod
-    async def search_worker(peer_queue: Queue, query: list, responses: list):
+    async def search_worker(peer_queue: Queue, request_body: bytes, responses: list):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
             try:
                 responses.append(await peer_fetch(client, peer, "api/federation/dataset-search",
-                                                  request_body=json.dumps({"query": query})))
+                                                  request_body=request_body, method="POST"))
             except HTTPError as e:
                 # TODO: Less broad of an exception
                 responses.append(None)
@@ -234,23 +234,29 @@ class FederatedDatasetSearchHandler(RequestHandler):
 
     async def post(self):
         request = get_request_json(self.request.body)
-        if request is None or "query" not in request:
+        if request is None or "data_type_queries" not in request or "join_query" not in request:
             # TODO: Better / more compliant error message
             self.set_status(400)
             return
 
         try:
-            query = request["query"]
-
             # Check for query errors
-            convert_query_to_ast_and_preprocess(query)
+
+            # Try compiling join query to make sure it works
+            convert_query_to_ast_and_preprocess(request["join_query"])
+
+            for q in request["data_type_queries"].values():
+                # Try compiling each query to make sure it works
+                convert_query_to_ast_and_preprocess(q)
+
+            # Federate out requests
 
             c = self.application.db.cursor()
             peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers(c))
             self.application.db.commit()
 
             responses = []
-            workers = tornado.gen.multi([self.search_worker(peer_queue, query, responses)
+            workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
                                          for _ in range(WORKERS)])
             await peer_queue.join()
             good_responses = tuple(r for r in responses if r is not None)
