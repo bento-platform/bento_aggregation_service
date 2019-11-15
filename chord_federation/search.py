@@ -66,7 +66,7 @@ class SearchHandler(RequestHandler):
             finally:
                 peer_queue.task_done()
 
-    async def options(self):
+    async def options(self, _search_path: str):
         self.set_status(204)
         await self.finish()
 
