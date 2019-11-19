@@ -153,13 +153,19 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             # TODO: Local query using sockets?
 
-            # TODO: One API call?
-            datasets, table_ownerships = await asyncio.gather(
+            # TODO: Reduce API call with combined renderers?
+            # TODO: Handle pagination
+            projects, datasets, table_ownerships = await asyncio.gather(
+                peer_fetch(client, CHORD_URL, "api/metadata/api/projects", method="GET"),
                 peer_fetch(client, CHORD_URL, "api/metadata/api/datasets", method="GET"),
                 peer_fetch(client, CHORD_URL, "api/metadata/api/table_ownership", method="GET")
             )
 
-            datasets_dict = {d["dataset_id"]: d for d in datasets["results"]}
+            projects_dict = {p["project_id"]: p for p in projects["results"]}
+            datasets_dict = {
+                d["dataset_id"]: {**d, "data_use": projects_dict[d["project"]]["data_use"]}
+                for d in datasets["results"]
+            }
             dataset_objects_dict = {d["dataset_id"]: {} for d in datasets["results"]}
 
             dataset_object_schema = {
@@ -198,7 +204,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             for d, s in dataset_objects_dict.items():  # TODO: Worker
                 result = check_ast_against_data_structure(query_ast, s, dataset_object_schema)
                 if result:
-                    results.append({"id": d})
+                    results.append(datasets_dict[d])  # TODO: Make sure all information here is public-level.
 
             self.write({"results": results})
 
