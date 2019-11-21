@@ -143,7 +143,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         results = []
 
         try:
-            query_ast = convert_query_to_ast_and_preprocess(join_query)
+            join_query_ast = convert_query_to_ast_and_preprocess(join_query)
 
             for q in data_type_queries.values():
                 # Try compiling each query to make sure it works
@@ -155,18 +155,15 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             # TODO: Reduce API call with combined renderers?
             # TODO: Handle pagination
-            projects, datasets, table_ownerships = await asyncio.gather(
+            projects, table_ownerships = await asyncio.gather(
                 peer_fetch(client, CHORD_URL, "api/metadata/api/projects", method="GET"),
-                peer_fetch(client, CHORD_URL, "api/metadata/api/datasets", method="GET"),
                 peer_fetch(client, CHORD_URL, "api/metadata/api/table_ownership", method="GET")
             )
 
             projects_dict = {p["project_id"]: p for p in projects["results"]}
-            datasets_dict = {
-                d["dataset_id"]: {**d, "data_use": projects_dict[d["project"]]["data_use"]}
-                for d in datasets["results"]
-            }
-            dataset_objects_dict = {d["dataset_id"]: {} for d in datasets["results"]}
+            datasets_dict = {d["dataset_id"]: {**d, "data_use": projects_dict[d["project"]]["data_use"]}
+                             for d in projects["datasets"]}
+            dataset_objects_dict = {d: {} for d in datasets_dict.keys()}
 
             dataset_object_schema = {
                 "type": "object",
@@ -174,35 +171,38 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             }
 
             for t in table_ownerships["results"]:  # TODO: Query worker
-                if t["dataset"] not in datasets_dict:
+                table_dataset_id = t["dataset"]
+                table_data_type = t["data_type"]
+
+                if table_dataset_id not in datasets_dict:
                     # TODO: error
                     continue
 
-                if "tables" not in datasets_dict[t["dataset"]]:
-                    datasets_dict[t["dataset"]]["tables"] = []
+                if "tables" not in datasets_dict[table_dataset_id]:
+                    datasets_dict[table_dataset_id]["tables"] = []
 
-                if t["data_type"] not in dataset_object_schema["properties"]:
-                    dataset_object_schema["properties"][t["data_type"]] = {
+                if table_data_type not in dataset_object_schema["properties"]:
+                    dataset_object_schema["properties"][table_data_type] = {
                         "type": "array",
                         "items": (await peer_fetch(
                             client,
                             CHORD_URL,
-                            f"api/{t['service_artifact']}/data-types/{t['data_type']}/schema",
+                            f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
                             method="GET"
-                        )) if t["data_type"] in data_type_queries else {}
+                        )) if table_data_type in data_type_queries else {}
                     }
 
-                if t["data_type"] not in dataset_objects_dict[t["dataset"]]:
-                    dataset_objects_dict[t["dataset"]][t["data_type"]] = (await peer_fetch(
+                if table_data_type not in dataset_objects_dict[table_dataset_id]:
+                    dataset_objects_dict[table_dataset_id][table_data_type] = (await peer_fetch(
                         client,
                         CHORD_URL,
                         f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
-                        request_body=json.dumps({"query": data_type_queries[t["data_type"]]}),
+                        request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                         method="POST"
-                    ))["results"] if t["data_type"] in data_type_queries else []
+                    ))["results"] if table_data_type in data_type_queries else []
 
             for d, s in dataset_objects_dict.items():  # TODO: Worker
-                result = check_ast_against_data_structure(query_ast, s, dataset_object_schema)
+                result = check_ast_against_data_structure(join_query_ast, s, dataset_object_schema)
                 if result:
                     results.append(datasets_dict[d])  # TODO: Make sure all information here is public-level.
 
