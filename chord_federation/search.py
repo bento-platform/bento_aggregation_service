@@ -129,7 +129,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
     async def post(self):
         request = get_request_json(self.request.body)
-        if request is None or "data_type_queries" not in request or "join_query" not in request:
+        if request is None or "data_type_queries" not in request:
             # TODO: Better / more compliant error message
             self.set_status(400)
             return
@@ -138,12 +138,12 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         data_type_queries = request["data_type_queries"]
 
         # Format: normal query, using data types for join conditions
-        join_query = request["join_query"]
+        join_query = request.get("join_query", None)
 
         results = []
 
         try:
-            join_query_ast = convert_query_to_ast_and_preprocess(join_query)
+            join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
 
             for q in data_type_queries.values():
                 # Try compiling each query to make sure it works
@@ -211,8 +211,11 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     ))["results"] if table_data_type in data_type_queries else []
 
             for d, s in dataset_objects_dict.items():  # TODO: Worker
-                result = check_ast_against_data_structure(join_query_ast, s, dataset_object_schema)
-                if result:
+                # Append result if:
+                #  - No join query was specified and there is at least one matching table present in the dataset; or
+                #  - A join query is present and evaluates to True against the dataset.
+                if ((join_query_ast is None and any(len(dtr) > 0 for dtr in s)) or
+                        check_ast_against_data_structure(join_query_ast, s, dataset_object_schema)):
                     results.append(datasets_dict[d])  # TODO: Make sure all information here is public-level.
 
             self.write({"results": results})
