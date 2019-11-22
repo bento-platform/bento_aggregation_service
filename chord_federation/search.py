@@ -160,9 +160,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 peer_fetch(client, CHORD_URL, "api/metadata/api/table_ownership", method="GET")
             )
 
-            projects_dict = {p["project_id"]: p for p in projects["results"]}
-            datasets_dict = {d["dataset_id"]: {**d, "data_use": projects_dict[d["project"]]["data_use"]}
-                             for d in projects["datasets"]}
+            datasets_dict = {d["dataset_id"]: {**d, "data_use": p["data_use"]}
+                             for p in projects["results"] for d in p["datasets"]}
             dataset_objects_dict = {d: {} for d in datasets_dict.keys()}
 
             dataset_object_schema = {
