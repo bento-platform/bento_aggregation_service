@@ -174,6 +174,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             tables_with_metadata = table_ownerships["results"] + [{
                 "table_id": d,
+                "dataset": d,
                 "data_type": "phenopacket",  # TODO: Don't hard-code?
                 "service_artifact": "metadata",
             } for d in datasets_dict.keys()]
