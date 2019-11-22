@@ -169,7 +169,16 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 "properties": {}
             }
 
-            for t in table_ownerships["results"]:  # TODO: Query worker
+            # Include metadata table explicitly
+            # TODO: This should probably be auto-produced by the metadata service
+
+            tables_with_metadata = table_ownerships["results"] + [{
+                "table_id": d,
+                "data_type": "phenopacket",  # TODO: Don't hard-code?
+                "service_artifact": "metadata",
+            } for d in datasets_dict.keys()]
+
+            for t in tables_with_metadata:  # TODO: Query worker
                 table_dataset_id = t["dataset"]
                 table_data_type = t["data_type"]
 
