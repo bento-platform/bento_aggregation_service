@@ -217,8 +217,9 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             self.write({"results": results})
 
-        except HTTPError:
+        except HTTPError as e:
             # Metadata service error
+            print("Error from service: {}".format(e))
             self.set_status(500)
 
         except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
