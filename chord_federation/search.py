@@ -268,8 +268,9 @@ class FederatedDatasetSearchHandler(RequestHandler):
         try:
             # Check for query errors
 
-            # Try compiling join query to make sure it works
-            convert_query_to_ast_and_preprocess(request["join_query"])
+            # Try compiling join query to make sure it works (if it's not null, i.e. unspecified)
+            if request["join_query"] is not None:
+                convert_query_to_ast_and_preprocess(request["join_query"])
 
             for q in request["data_type_queries"].values():
                 # Try compiling each query to make sure it works
