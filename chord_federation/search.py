@@ -210,10 +210,12 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     ))["results"] if table_data_type in data_type_queries else []
 
             for d, s in dataset_objects_dict.items():  # TODO: Worker
+                # d: dataset identifier
+                # s: dict of data types and corresponding table matches
                 # Append result if:
                 #  - No join query was specified and there is at least one matching table present in the dataset; or
                 #  - A join query is present and evaluates to True against the dataset.
-                if ((join_query_ast is None and any(len(dtr) > 0 for dtr in s)) or
+                if ((join_query_ast is None and any(len(dtr) > 0 for dtr in s.values())) or
                         check_ast_against_data_structure(join_query_ast, s, dataset_object_schema)):
                     results.append(datasets_dict[d])  # TODO: Make sure all information here is public-level.
 
