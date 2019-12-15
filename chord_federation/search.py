@@ -206,6 +206,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                         method="POST"
                     ))["results"] if table_data_type in data_type_queries else []
 
+            print("[CHORD Federation {}] Done fetching individual service search results.", flush=True)
+
             for d, s in dataset_objects_dict.items():  # TODO: Worker
                 # d: dataset identifier
                 # s: dict of data types and corresponding table matches
