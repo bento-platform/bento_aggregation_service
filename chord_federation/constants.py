@@ -31,6 +31,6 @@ SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
-TIMEOUT = 45
+TIMEOUT = 120
 WORKERS = 10
 LAST_ERRORED_CACHE_TIME = 30
