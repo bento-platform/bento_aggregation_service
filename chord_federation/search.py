@@ -186,9 +186,6 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     # TODO: error
                     continue
 
-                if "tables" not in datasets_dict[table_dataset_id]:
-                    datasets_dict[table_dataset_id]["tables"] = []
-
                 if table_data_type not in dataset_object_schema["properties"]:
                     dataset_object_schema["properties"][table_data_type] = {
                         "type": "array",
