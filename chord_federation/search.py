@@ -1,5 +1,6 @@
 import asyncio
 import json
+import socket
 import tornado.gen
 
 from chord_lib.search.data_structure import check_ast_against_data_structure
@@ -7,12 +8,35 @@ from chord_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
 from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPError
+from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
 from typing import Iterable, Optional
 
-from .constants import TIMEOUT, WORKERS, CHORD_URL
+from .constants import TIMEOUT, WORKERS, CHORD_SERVICES, SOCKET_FORMAT
+
+
+class ServiceSocketResolver(Resolver):
+    # noinspection PyAttributeOutsideInit
+    def initialize(self, resolver):  # tornado Configurable init
+        self.resolver = resolver
+        self.service_sockets = {
+            s["type"]["artifact"]: SOCKET_FORMAT.format(artifact=s["type"]["artifact"])
+            for s in CHORD_SERVICES
+        }
+
+    def close(self):
+        self.resolver.close()
+
+    async def resolve(self, host, port, *args, **kwargs):
+        if host in self.service_sockets:
+            return [(socket.AF_UNIX, self.service_sockets[host])]
+
+        return self.resolver.resolve(host, port, *args, **kwargs)
+
+
+AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 def get_request_json(request_body: bytes) -> Optional[dict]:
@@ -109,6 +133,10 @@ class SearchHandler(RequestHandler):
         await workers
 
 
+def artifact_url(artifact):
+    return f"http://{artifact}/"
+
+
 class QueryError(Exception):
     pass
 
@@ -155,9 +183,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             # TODO: Reduce API call with combined renderers?
             # TODO: Handle pagination
+            # Use Unix socket resolver
             projects, table_ownerships = await asyncio.gather(
-                peer_fetch(client, CHORD_URL, "api/metadata/api/projects", method="GET"),
-                peer_fetch(client, CHORD_URL, "api/metadata/api/table_ownership", method="GET")
+                peer_fetch(client, artifact_url("metadata"), "api/projects", method="GET"),
+                peer_fetch(client, artifact_url("metadata"), "api/table_ownership", method="GET")
             )
 
             datasets_dict = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
@@ -191,8 +220,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                         "type": "array",
                         "items": (await peer_fetch(
                             client,
-                            CHORD_URL,
-                            f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
+                            artifact_url(t["service_artifact"]),  # Use Unix socket resolver
+                            f"data-types/{table_data_type}/schema",
                             method="GET"
                         )) if table_data_type in data_type_queries else {}
                     }
@@ -200,8 +229,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 if table_data_type not in dataset_objects_dict[table_dataset_id]:
                     dataset_objects_dict[table_dataset_id][table_data_type] = (await peer_fetch(
                         client,
-                        CHORD_URL,
-                        f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
+                        artifact_url(t["service_artifact"]),  # Use Unix socket resolver
+                        f"private/tables/{t['table_id']}/search",
                         request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                         method="POST"
                     ))["results"] if table_data_type in data_type_queries else []
