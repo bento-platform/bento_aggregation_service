@@ -30,9 +30,12 @@ class ServiceSocketResolver(Resolver):
     async def resolve(self, host, port, *args, **kwargs):
         print("resolve", host)
         if host == SOCKET_INTERNAL_DOMAIN:
+            print("sock resolved")
             return [(socket.AF_UNIX, SOCKET_INTERNAL)]
 
-        return await self.resolver.resolve(host, port, *args, **kwargs)
+        r = await self.resolver.resolve(host, port, *args, **kwargs)
+        print("else resolved", r)
+        return r
 
 
 AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
@@ -63,7 +66,7 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
                      method: str = "POST"):
-    print("peer fetch", peer)
+    print("peer fetch", peer, path_fragment)
     r = await client.fetch(f"{peer}{path_fragment}", request_timeout=TIMEOUT, method=method, body=request_body,
                            headers={"Content-Type": "application/json", "Host": CHORD_HOST}, raise_error=True)
     return json.loads(r.body)
