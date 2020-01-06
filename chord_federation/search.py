@@ -19,6 +19,7 @@ from .constants import CHORD_HOST, TIMEOUT, WORKERS, SOCKET_INTERNAL, SOCKET_INT
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 
+# TODO: Try to use OverrideResolver instead
 class ServiceSocketResolver(Resolver):
     # noinspection PyAttributeOutsideInit
     def initialize(self, resolver):  # tornado Configurable init
@@ -28,14 +29,9 @@ class ServiceSocketResolver(Resolver):
         self.resolver.close()
 
     async def resolve(self, host, port, *args, **kwargs):
-        print("resolve", host)
         if host == SOCKET_INTERNAL_DOMAIN:
-            print("sock resolved")
             return [(socket.AF_UNIX, SOCKET_INTERNAL)]
-
-        r = await self.resolver.resolve(host, port, *args, **kwargs)
-        print("else resolved", r)
-        return r
+        return await self.resolver.resolve(host, port, *args, **kwargs)
 
 
 AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
@@ -66,7 +62,6 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
                      method: str = "POST", extra_headers: Optional[dict] = None):
-    print("peer fetch", peer, path_fragment)
     r = await client.fetch(
         f"{peer}{path_fragment}",
         request_timeout=TIMEOUT,
@@ -164,8 +159,6 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         await self.finish()
 
     async def post(self):
-        print("received ds search req", self.request)
-
         request = get_request_json(self.request.body)
         if request is None or "data_type_queries" not in request:
             # TODO: Better / more compliant error message
@@ -287,8 +280,6 @@ class FederatedDatasetSearchHandler(RequestHandler):
             if peer is None:
                 # Exit signal
                 return
-
-            print("search worker", peer)
 
             try:
                 responses.append(await peer_fetch(client, peer, "api/federation/dataset-search",
