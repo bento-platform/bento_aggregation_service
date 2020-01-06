@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 
 from . import __version__
 
@@ -6,6 +7,7 @@ from . import __version__
 __all__ = [
     "BASE_PATH",
     "CHORD_URL",
+    "CHORD_HOST",
     "CHORD_REGISTRY_URL",
 
     "DB_PATH",
@@ -27,6 +29,7 @@ __all__ = [
 
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
 CHORD_URL = os.environ.get("CHORD_URL", "")
+CHORD_HOST = os.environ.get("CHORD_HOST", urllib.parse.urlparse(CHORD_URL).netloc if CHORD_URL != "" else "")
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 SERVICE_TYPE = "ca.c3g.chord:federation:{}".format(__version__)
