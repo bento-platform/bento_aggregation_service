@@ -33,7 +33,7 @@ class ServiceSocketResolver(Resolver):
         if host in self.service_sockets:
             return [(socket.AF_UNIX, self.service_sockets[host])]
 
-        return self.resolver.resolve(host, port, *args, **kwargs)
+        return await self.resolver.resolve(host, port, *args, **kwargs)
 
 
 AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
