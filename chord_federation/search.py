@@ -14,24 +14,22 @@ from tornado.web import RequestHandler
 
 from typing import Iterable, Optional
 
-from .constants import TIMEOUT, WORKERS, CHORD_SERVICES, SOCKET_FORMAT
+from .constants import TIMEOUT, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
+
+SOCKET_INTERNAL_HOST = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 
 class ServiceSocketResolver(Resolver):
     # noinspection PyAttributeOutsideInit
     def initialize(self, resolver):  # tornado Configurable init
         self.resolver = resolver
-        self.service_sockets = {
-            s["type"]["artifact"]: SOCKET_FORMAT.format(artifact=s["type"]["artifact"])
-            for s in CHORD_SERVICES
-        }
 
     def close(self):
         self.resolver.close()
 
     async def resolve(self, host, port, *args, **kwargs):
-        if host in self.service_sockets:
-            return [(socket.AF_UNIX, self.service_sockets[host])]
+        if host == SOCKET_INTERNAL_DOMAIN:
+            return [(socket.AF_UNIX, SOCKET_INTERNAL)]
 
         return await self.resolver.resolve(host, port, *args, **kwargs)
 
@@ -133,10 +131,6 @@ class SearchHandler(RequestHandler):
         await workers
 
 
-def artifact_url(artifact):
-    return f"http://{artifact}/"
-
-
 class QueryError(Exception):
     pass
 
@@ -185,8 +179,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             # TODO: Handle pagination
             # Use Unix socket resolver
             projects, table_ownerships = await asyncio.gather(
-                peer_fetch(client, artifact_url("metadata"), "api/projects", method="GET"),
-                peer_fetch(client, artifact_url("metadata"), "api/table_ownership", method="GET")
+                peer_fetch(client, SOCKET_INTERNAL_HOST, "api/metadata/api/projects", method="GET"),
+                peer_fetch(client, SOCKET_INTERNAL_HOST, "api/metadata/api/table_ownership", method="GET")
             )
 
             datasets_dict = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
@@ -220,8 +214,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                         "type": "array",
                         "items": (await peer_fetch(
                             client,
-                            artifact_url(t["service_artifact"]),  # Use Unix socket resolver
-                            f"data-types/{table_data_type}/schema",
+                            SOCKET_INTERNAL_HOST,  # Use Unix socket resolver
+                            f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
                             method="GET"
                         )) if table_data_type in data_type_queries else {}
                     }
@@ -229,8 +223,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 if table_data_type not in dataset_objects_dict[table_dataset_id]:
                     dataset_objects_dict[table_dataset_id][table_data_type] = (await peer_fetch(
                         client,
-                        artifact_url(t["service_artifact"]),  # Use Unix socket resolver
-                        f"private/tables/{t['table_id']}/search",
+                        SOCKET_INTERNAL_HOST,  # Use Unix socket resolver
+                        f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
                         request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                         method="POST"
                     ))["results"] if table_data_type in data_type_queries else []
