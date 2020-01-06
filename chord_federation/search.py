@@ -8,7 +8,7 @@ from chord_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
 from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPError
-from tornado.netutil import Resolver
+from tornado.netutil import OverrideResolver, DefaultExecutorResolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
@@ -19,26 +19,28 @@ from .constants import CHORD_HOST, TIMEOUT, WORKERS, SOCKET_INTERNAL, SOCKET_INT
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 
-class ServiceSocketResolver(Resolver):
-    # noinspection PyAttributeOutsideInit
-    def initialize(self, resolver):  # tornado Configurable init
-        self.resolver = resolver
+# class ServiceSocketResolver(Resolver):
+#     # noinspection PyAttributeOutsideInit
+#     def initialize(self, resolver):  # tornado Configurable init
+#         self.resolver = resolver
+#
+#     def close(self):
+#         self.resolver.close()
+#
+#     async def resolve(self, host, port, *args, **kwargs):
+#         print("resolve", host)
+#         if host == SOCKET_INTERNAL_DOMAIN:
+#             print("sock resolved")
+#             return [(socket.AF_UNIX, SOCKET_INTERNAL)]
+#
+#         r = await self.resolver.resolve(host, port, *args, **kwargs)
+#         print("else resolved", r)
+#         return r
 
-    def close(self):
-        self.resolver.close()
 
-    async def resolve(self, host, port, *args, **kwargs):
-        print("resolve", host)
-        if host == SOCKET_INTERNAL_DOMAIN:
-            print("sock resolved")
-            return [(socket.AF_UNIX, SOCKET_INTERNAL)]
-
-        r = await self.resolver.resolve(host, port, *args, **kwargs)
-        print("else resolved", r)
-        return r
-
-
-AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
+AsyncHTTPClient.configure(None, resolver=OverrideResolver(resolver=DefaultExecutorResolver(), mapping={
+    SOCKET_INTERNAL_DOMAIN: (socket.AF_UNIX, SOCKET_INTERNAL)
+}))
 
 
 def get_request_json(request_body: bytes) -> Optional[dict]:
@@ -155,6 +157,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         await self.finish()
 
     async def post(self):
+        print("received ds search req", self.request)
+
         request = get_request_json(self.request.body)
         if request is None or "data_type_queries" not in request:
             # TODO: Better / more compliant error message
