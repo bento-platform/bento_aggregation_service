@@ -28,7 +28,7 @@ class ServiceSocketResolver(Resolver):
         self.resolver.close()
 
     async def resolve(self, host, port, *args, **kwargs):
-        print(host)
+        print("resolve", host)
         if host == SOCKET_INTERNAL_DOMAIN:
             return [(socket.AF_UNIX, SOCKET_INTERNAL)]
 
@@ -63,6 +63,7 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
                      method: str = "POST"):
+    print("peer fetch", peer)
     r = await client.fetch(f"{peer}{path_fragment}", request_timeout=TIMEOUT, method=method, body=request_body,
                            headers={"Content-Type": "application/json", "Host": CHORD_HOST}, raise_error=True)
     return json.loads(r.body)
@@ -268,6 +269,8 @@ class FederatedDatasetSearchHandler(RequestHandler):
             if peer is None:
                 # Exit signal
                 return
+
+            print("search worker", peer)
 
             try:
                 responses.append(await peer_fetch(client, peer, "api/federation/dataset-search",
