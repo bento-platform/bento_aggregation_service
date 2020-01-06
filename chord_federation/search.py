@@ -8,7 +8,7 @@ from chord_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
 from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPError
-from tornado.netutil import OverrideResolver, DefaultExecutorResolver
+from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
@@ -19,28 +19,26 @@ from .constants import CHORD_HOST, TIMEOUT, WORKERS, SOCKET_INTERNAL, SOCKET_INT
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 
-# class ServiceSocketResolver(Resolver):
-#     # noinspection PyAttributeOutsideInit
-#     def initialize(self, resolver):  # tornado Configurable init
-#         self.resolver = resolver
-#
-#     def close(self):
-#         self.resolver.close()
-#
-#     async def resolve(self, host, port, *args, **kwargs):
-#         print("resolve", host)
-#         if host == SOCKET_INTERNAL_DOMAIN:
-#             print("sock resolved")
-#             return [(socket.AF_UNIX, SOCKET_INTERNAL)]
-#
-#         r = await self.resolver.resolve(host, port, *args, **kwargs)
-#         print("else resolved", r)
-#         return r
+class ServiceSocketResolver(Resolver):
+    # noinspection PyAttributeOutsideInit
+    def initialize(self, resolver):  # tornado Configurable init
+        self.resolver = resolver
+
+    def close(self):
+        self.resolver.close()
+
+    async def resolve(self, host, port, *args, **kwargs):
+        print("resolve", host)
+        if host == SOCKET_INTERNAL_DOMAIN:
+            print("sock resolved")
+            return [(socket.AF_UNIX, SOCKET_INTERNAL)]
+
+        r = await self.resolver.resolve(host, port, *args, **kwargs)
+        print("else resolved", r)
+        return r
 
 
-AsyncHTTPClient.configure(None, resolver=OverrideResolver(resolver=DefaultExecutorResolver(), mapping={
-    SOCKET_INTERNAL_DOMAIN: (socket.AF_UNIX, SOCKET_INTERNAL)
-}))
+AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 def get_request_json(request_body: bytes) -> Optional[dict]:
@@ -67,10 +65,16 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
 
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
-                     method: str = "POST"):
+                     method: str = "POST", extra_headers: Optional[dict] = None):
     print("peer fetch", peer, path_fragment)
-    r = await client.fetch(f"{peer}{path_fragment}", request_timeout=TIMEOUT, method=method, body=request_body,
-                           headers={"Content-Type": "application/json", "Host": CHORD_HOST}, raise_error=True)
+    r = await client.fetch(
+        f"{peer}{path_fragment}",
+        request_timeout=TIMEOUT,
+        method=method,
+        body=request_body,
+        headers={"Content-Type": "application/json", **({} if extra_headers is None else extra_headers)},
+        raise_error=True
+    )
     return json.loads(r.body)
 
 
@@ -146,6 +150,9 @@ async def empty_list():
     return []
 
 
+DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
+
+
 # noinspection PyAbstractClass
 class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
     """
@@ -188,8 +195,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             # TODO: Handle pagination
             # Use Unix socket resolver
             projects, table_ownerships = await asyncio.gather(
-                peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/projects", method="GET"),
-                peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/table_ownership", method="GET")
+                peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/projects", method="GET",
+                           extra_headers=DATASET_SEARCH_HEADERS),
+                peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/table_ownership", method="GET",
+                           extra_headers=DATASET_SEARCH_HEADERS)
             )
 
             datasets_dict = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
@@ -225,7 +234,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                             client,
                             SOCKET_INTERNAL_URL,  # Use Unix socket resolver
                             f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
-                            method="GET"
+                            method="GET",
+                            extra_headers=DATASET_SEARCH_HEADERS
                         )) if table_data_type in data_type_queries else {}
                     }
 
@@ -235,7 +245,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                         SOCKET_INTERNAL_URL,  # Use Unix socket resolver
                         f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
                         request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                        method="POST"
+                        method="POST",
+                        extra_headers=DATASET_SEARCH_HEADERS
                     ))["results"] if table_data_type in data_type_queries else []
 
             print("[CHORD Federation {}] Done fetching individual service search results.".format(datetime.now()),
