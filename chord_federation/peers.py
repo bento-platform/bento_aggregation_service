@@ -44,8 +44,6 @@ class PeerManager:
             if peer in attempted_contact:
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
-                # if peers_to_check.qsize() == 0:
-                #     return
                 continue
 
             if peer in self.contacting:
@@ -211,7 +209,7 @@ class PeerHandler(RequestHandler):
                         insert_or_ignore_peer(c, peer_url)
                         self.application.db.commit()
 
-                except Exception as e:
+                except Exception as e:  # Parse error or HTTP error
                     # TODO: Better / more compliant error message, don't return early
                     self.application.peer_manager.last_errored[peer_url] = datetime.now().timestamp()
                     print("[CHORD Federation {}] Error when processing notify from peer {}.\n"
