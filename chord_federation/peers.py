@@ -2,7 +2,8 @@ import json
 import tornado.gen
 
 from datetime import datetime, timedelta
-from tornado.httpclient import AsyncHTTPClient
+from sqlite3 import Connection
+from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 from typing import Dict, List, Set
@@ -12,7 +13,9 @@ from .db import check_peer_exists, insert_or_ignore_peer
 
 
 class PeerManager:
-    def __init__(self):
+    def __init__(self, db: Connection):
+        self.db = db
+
         self.last_peers_update = datetime.utcfromtimestamp(0)
         self.peer_cache_invalidated = False
         self.connected_to_peer_network = False
@@ -76,11 +79,9 @@ class PeerManager:
             except IndexError:
                 print(f"[CHORD Federation] Error: Invalid 200 response returned by {peer}.", flush=True)
 
-            except Exception as e:
-                # TODO: Less generic error
-                print("[CHORD Federation] Peer contact error for {}".format(peer), flush=True)
+            except HTTPError as e:
+                print("[CHORD Federation] Peer contact error for {} ({})".format(peer, str(e)), flush=True)
                 self.last_errored[peer] = datetime.now().timestamp()
-                print(peer, str(e), flush=True)
 
             peers = peers.union(peer_peers)
             new_peer = False
@@ -99,7 +100,9 @@ class PeerManager:
             peers_to_check_set.remove(peer)
             peers_to_check.task_done()
 
-    async def get_peers(self, c) -> Set[str]:
+    async def get_peers(self) -> Set[str]:
+        c = self.db.cursor()
+
         c.execute("SELECT url FROM peers")
         peers: Set[str] = set(p[0] for p in c.fetchall())
 
@@ -132,6 +135,9 @@ class PeerManager:
             for peer in peers:
                 insert_or_ignore_peer(c, peer)
 
+            # Commit any new peers to the database
+            self.db.commit()
+
             self.fetching_peers = False
 
             # Trigger exit for all workers
@@ -151,13 +157,8 @@ class PeerHandler(RequestHandler):
         await self.finish()
 
     async def get(self):
-        c = self.application.db.cursor()
-        peers = await self.application.peer_manager.get_peers(c)
-
-        # Commit any changes triggered by the get
-        self.application.db.commit()
-
-        self.write({"peers": list(peers), "last_updated": self.application.peer_manager.last_peers_update.timestamp()})
+        peers = list(await self.application.peer_manager.get_peers())
+        self.write({"peers": peers, "last_updated": self.application.peer_manager.last_peers_update.timestamp()})
 
     async def post(self):
         """

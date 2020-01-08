@@ -107,10 +107,7 @@ class SearchHandler(RequestHandler):
             self.set_status(400)
             return
 
-        c = self.application.db.cursor()
-        peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers(c))
-        self.application.db.commit()
-
+        peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
         responses = []
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
         await peer_queue.join()
@@ -317,10 +314,7 @@ class FederatedDatasetSearchHandler(RequestHandler):
 
             # Federate out requests
 
-            c = self.application.db.cursor()
-            peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers(c))
-            self.application.db.commit()
-
+            peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
             responses = []
             workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
                                          for _ in range(WORKERS)])

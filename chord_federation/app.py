@@ -41,7 +41,7 @@ class ServiceInfoHandler(RequestHandler):
 class Application(tornado.web.Application):
     def __init__(self, db, base_path: str):
         self.db = db
-        self.peer_manager = PeerManager()
+        self.peer_manager = PeerManager(self.db)
 
         handlers = [
             url(f"{base_path}/service-info", ServiceInfoHandler),
