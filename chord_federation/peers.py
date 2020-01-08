@@ -10,6 +10,7 @@ from typing import Dict, List, Set
 
 from .constants import *
 from .db import check_peer_exists, insert_or_ignore_peer
+from .utils import peer_fetch
 
 
 class PeerManager:
@@ -58,21 +59,21 @@ class PeerManager:
             peer_peers: List[str] = []
 
             try:
-                await client.fetch(
-                    f"{peer}api/federation/peers",
-                    request_timeout=TIMEOUT,
-                    method="POST",
-                    body=json.dumps({"peers": list(peers), "self": CHORD_URL}),
-                    headers={"Content-Type": "application/json"},
-                    raise_error=True
+                # TODO: Combine requests?
+
+                await peer_fetch(
+                    client=client,
+                    peer=peer,
+                    path_fragment="api/federation/peers",  # TODO: This should probably be parametrized
+                    request_body=json.dumps({"peers": list(peers), "self": CHORD_URL})
                 )
 
-                r = await client.fetch(f"{peer}api/federation/peers", method="GET", request_timeout=TIMEOUT)
+                r = await peer_fetch(client=client, peer=peer, path_fragment="api/federation/peers", method="GET")
 
                 # If a non-200 response is encountered, an error is raised
 
                 self.connected_to_peer_network = True
-                peer_peers = json.loads(r.body)["peers"]
+                peer_peers = r["peers"]
 
             except IndexError:
                 print(f"[CHORD Federation] Error: Invalid 200 response returned by {peer}.", flush=True)
@@ -199,11 +200,16 @@ class PeerHandler(RequestHandler):
                     continue
 
                 try:
-                    r = await client.fetch(f"{peer_url}api/federation/service-info?update_peers=false",
-                                           request_timeout=TIMEOUT)
+                    r = await peer_fetch(
+                        client=client,
+                        peer=peer_url,
+                        path_fragment="api/federation/service-info?update_peers=false",
+                        method="GET"
+                    )
 
                     # TODO: Check semver for compatibility
-                    if "ca.c3g.chord:federation" in json.loads(r.body)["type"]:
+                    # TODO: Check JSON schema
+                    if "ca.c3g.chord:federation" in r["type"]:
                         # Peer two-way communication is possible
                         new_pci = new_pci or not check_peer_exists(c, peer_url)
                         insert_or_ignore_peer(c, peer_url)

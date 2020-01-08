@@ -14,7 +14,8 @@ from tornado.web import RequestHandler
 
 from typing import Iterable, Optional
 
-from .constants import CHORD_HOST, TIMEOUT, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
+from .constants import CHORD_HOST, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
+from .utils import peer_fetch
 
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
@@ -58,19 +59,6 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
         peer_queue.put_nowait(peer)
 
     return peer_queue
-
-
-async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
-                     method: str = "POST", extra_headers: Optional[dict] = None):
-    r = await client.fetch(
-        f"{peer}{path_fragment}",
-        request_timeout=TIMEOUT,
-        method=method,
-        body=request_body,
-        headers={"Content-Type": "application/json", **({} if extra_headers is None else extra_headers)},
-        raise_error=True
-    )
-    return json.loads(r.body)
 
 
 # noinspection PyAbstractClass
