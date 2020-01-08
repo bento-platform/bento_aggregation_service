@@ -20,9 +20,7 @@ class ServiceInfoHandler(RequestHandler):
 
         if self.get_argument("update_peers", "true") == "true":
             # Hack to force lists to update when the CHORD dashboard is loaded
-            c = self.application.db.cursor()
-            await self.application.peer_manager.get_peers(c)
-            self.application.db.commit()
+            await self.application.peer_manager.get_peers()
 
         self.write({
             "id": SERVICE_ID,
