@@ -71,7 +71,10 @@ class SearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append(await peer_fetch(client, peer, f"api/{search_path}", self.request.body))
+                responses.append({
+                    **(await peer_fetch(client, peer, f"api/{search_path}", self.request.body)),
+                    "node": peer  # Tag result with peer URL
+                })
 
             except Exception as e:
                 # TODO: Less broad of an exception
@@ -267,8 +270,12 @@ class FederatedDatasetSearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append(await peer_fetch(client, peer, "api/federation/dataset-search",
-                                                  request_body=request_body, method="POST"))
+                responses.append({
+                    **(await peer_fetch(client, peer, "api/federation/dataset-search",
+                                        request_body=request_body, method="POST")),
+                    "node": peer  # Tag result with peer URL
+                })
+
             except HTTPError as e:
                 # TODO: Less broad of an exception
                 responses.append(None)
