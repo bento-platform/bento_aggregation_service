@@ -71,14 +71,11 @@ class SearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append({
-                    **(await peer_fetch(client, peer, f"api/{search_path}", self.request.body)),
-                    "node": peer  # Tag result with peer URL
-                })
+                responses.append((peer, await peer_fetch(client, peer, f"api/{search_path}", self.request.body)))
 
             except Exception as e:
                 # TODO: Less broad of an exception
-                responses.append(None)
+                responses.append((peer, None))
                 print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
                       "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
 
@@ -102,13 +99,9 @@ class SearchHandler(RequestHandler):
         responses = []
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
         await peer_queue.join()
-        good_responses = tuple(r for r in responses if r is not None)
 
         try:
-            self.write({
-                "results": list(chain.from_iterable((r["results"] for r in good_responses))),
-                "peers": {"responded": len(good_responses), "total": len(responses)}
-            })
+            self.write({"results": {n: r["results"] for n, r in responses}})
 
         except KeyError:
             # TODO: Better / more compliant error message
@@ -270,15 +263,12 @@ class FederatedDatasetSearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append({
-                    **(await peer_fetch(client, peer, "api/federation/dataset-search",
-                                        request_body=request_body, method="POST")),
-                    "node": peer  # Tag result with peer URL
-                })
+                responses.append((peer, await peer_fetch(client, peer, "api/federation/dataset-search",
+                                                         request_body=request_body, method="POST")))
 
             except HTTPError as e:
                 # TODO: Less broad of an exception
-                responses.append(None)
+                responses.append((peer, None))
                 print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
                       "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
 
@@ -314,13 +304,9 @@ class FederatedDatasetSearchHandler(RequestHandler):
             workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
                                          for _ in range(WORKERS)])
             await peer_queue.join()
-            good_responses = tuple(r for r in responses if r is not None)
 
             try:
-                self.write({
-                    "results": list(chain.from_iterable((r["results"] for r in good_responses))),
-                    "peers": {"responded": len(good_responses), "total": len(responses)}
-                })
+                self.write({"results": {n: r["results"] for n, r in responses}})
 
             except KeyError:
                 # TODO: Better / more compliant error message
