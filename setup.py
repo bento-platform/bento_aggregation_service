@@ -26,7 +26,7 @@ setuptools.setup(
         "console_scripts": ["chord_federation=chord_federation.app:run"]
     },
 
-    url="TODO",
+    url="https://github.com/c3g/chord_federation",
     license="LGPLv3",
     classifiers=[
         "Programming Language :: Python :: 3",
