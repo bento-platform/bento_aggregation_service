@@ -6,7 +6,6 @@ import tornado.gen
 from chord_lib.search.data_structure import check_ast_against_data_structure
 from chord_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
-from itertools import chain
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
 from tornado.queues import Queue
