@@ -4,7 +4,7 @@ from tornado.httpclient import AsyncHTTPClient
 from typing import Optional
 from urllib.parse import urljoin
 
-from .constants import TIMEOUT
+from .constants import CHORD_DEBUG, TIMEOUT
 
 
 __all__ = ["peer_fetch"]
@@ -12,6 +12,10 @@ __all__ = ["peer_fetch"]
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
                      method: str = "POST", extra_headers: Optional[dict] = None):
+    if CHORD_DEBUG:
+        print("[CHORD Federation] [DEBUG] {} to {}: {}".format(method, urljoin(peer, path_fragment), request_body),
+              flush=True)
+
     r = await client.fetch(
         urljoin(peer, path_fragment),
         request_timeout=TIMEOUT,
@@ -23,4 +27,5 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         },
         raise_error=True
     )
+
     return json.loads(r.body) if r.code != 204 else None

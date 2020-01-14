@@ -6,6 +6,8 @@ A service for federated search between CHORD nodes.
 
 `DATABASE`: Defaults to `data/federation.db`
 
+`CHORD_DEBUG`: `true` (insecure) or `false`; default is `false`
+
 `CHORD_URL`: ex. `http://127.0.0.1:5000/`
 
 `CHORD_HOST`: ex. `127.0.0.1:5000`

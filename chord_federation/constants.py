@@ -6,6 +6,7 @@ from . import __version__
 
 __all__ = [
     "BASE_PATH",
+    "CHORD_DEBUG",
     "CHORD_URL",
     "CHORD_HOST",
     "CHORD_REGISTRY_URL",
@@ -28,6 +29,7 @@ __all__ = [
 
 
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
+CHORD_DEBUG = os.environ.get("CHORD_DEBUG", "false").lower() == "true"
 CHORD_URL = os.environ.get("CHORD_URL", "")
 CHORD_HOST = os.environ.get("CHORD_HOST", urllib.parse.urlparse(CHORD_URL).netloc if CHORD_URL != "" else "")
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
