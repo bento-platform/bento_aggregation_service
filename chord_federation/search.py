@@ -166,15 +166,20 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     # dataset_id: dataset identifier
     # data_type_results: dict of data types and corresponding table matches
 
+    print(dataset_id)
+
     # Only include useful linked field sets, i.e. 2+ fields
     linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
                          if len(lfs) > 1]
+    print(linked_field_sets)
     if join_query is None:
         # Could re-return None; pass set of all data types to filter out combinations
         join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
+    print(join_query)
 
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
+    print(join_query_ast)
 
     # Append result if:
     #  - No join query was specified and there is at least one matching table present in the dataset; or
@@ -186,7 +191,10 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
              check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
                                               internal=True))):
         # Append results to aggregator list
+        print((join_query_ast is None and any(len(dtr) > 0 for dtr in data_type_results.values())))
         results.append(datasets_dict[dataset_id])  # TODO: Make sure all information here is public-level.
+
+    print("----")
 
 
 # noinspection PyAbstractClass
