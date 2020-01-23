@@ -12,7 +12,7 @@ from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import List, Iterable, Optional, Tuple
+from typing import List, Iterable, Optional, Set, Tuple
 
 from .constants import CHORD_HOST, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
 from .utils import peer_fetch
@@ -142,16 +142,23 @@ def _linked_field_set_to_join_query_rec(pairs):
             _linked_fields_to_join_query_fragment(*pairs[1:])]
 
 
-def _linked_field_sets_to_join_query(linked_field_sets) -> Optional[List]:
+def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str]) -> Optional[List]:
     if len(linked_field_sets) == 0:
         return None
-    elif len(linked_field_sets) == 1:
-        return _linked_field_set_to_join_query_rec(tuple(itertools.combinations(linked_field_sets[0], 2)))
 
     # TODO: This blows up combinatorially, oh well.
+    pairs = tuple(p for p in itertools.combinations(linked_field_sets[0].items(), 2)
+                  if p[0][0] in data_type_set and p[1][0] in data_type_set)
+
+    if len(pairs) == 0:
+        return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
+
+    if len(linked_field_sets) == 1:
+        return _linked_field_set_to_join_query_rec(pairs)
+
     return ["#and",
-            _linked_field_set_to_join_query_rec(tuple(itertools.combinations(linked_field_sets[0], 2))),
-            _linked_field_sets_to_join_query(linked_field_sets[1:])]
+            _linked_field_set_to_join_query_rec(pairs),
+            _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set)]
 
 
 # noinspection PyAbstractClass
@@ -250,10 +257,12 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                   flush=True)
 
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
+                # Only include useful linked field sets, i.e. 2+ fields
                 linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
-                                     if len(lfs) > 1]  # Only include useful linked field sets, i.e. 2+ fields
+                                     if len(lfs) > 1]
                 if join_query is None:
-                    join_query = _linked_field_sets_to_join_query(linked_field_sets)  # Could re-return None
+                    # Could re-return None; pass set of all data types to filter out combinations
+                    join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
 
                 # TODO: Avoid re-compiling a fixed join query
                 join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
