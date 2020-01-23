@@ -1,4 +1,5 @@
 import asyncio
+import itertools
 import json
 import socket
 import tornado.gen
@@ -11,7 +12,7 @@ from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import Iterable, Optional
+from typing import List, Iterable, Optional, Tuple
 
 from .constants import CHORD_HOST, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
 from .utils import peer_fetch
@@ -128,6 +129,31 @@ async def empty_list():
 DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
 
 
+def _linked_fields_to_join_query_fragment(field_1: Tuple[str, List[str]], field_2: Tuple[str, List[str]]):
+    return ["#eq", [field_1[0], "[item]", field_1[1]], [field_2[0], "[item]", field_2[1]]]
+
+
+def _linked_field_set_to_join_query_rec(pairs):
+    if len(pairs) == 1:
+        return _linked_fields_to_join_query_fragment(*pairs[0])
+
+    return ["#and",
+            _linked_fields_to_join_query_fragment(*pairs[0]),
+            _linked_fields_to_join_query_fragment(*pairs[1:])]
+
+
+def _linked_field_sets_to_join_query(linked_field_sets) -> Optional[List]:
+    if len(linked_field_sets) == 0:
+        return None
+    elif len(linked_field_sets) == 1:
+        return _linked_field_set_to_join_query_rec(tuple(itertools.combinations(linked_field_sets[0], 2)))
+
+    # TODO: This blows up combinatorially, oh well.
+    return ["#and",
+            _linked_field_set_to_join_query_rec(tuple(itertools.combinations(linked_field_sets[0], 2))),
+            _linked_field_sets_to_join_query(linked_field_sets[1:])]
+
+
 # noinspection PyAbstractClass
 class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
     """
@@ -154,8 +180,6 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         results = []
 
         try:
-            join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
-
             for q in data_type_queries.values():
                 # Try compiling each query to make sure it works
                 convert_query_to_ast_and_preprocess(q)
@@ -226,6 +250,14 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                   flush=True)
 
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
+                linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
+                                     if len(lfs) > 1]  # Only include useful linked field sets, i.e. 2+ fields
+                if join_query is None:
+                    join_query = _linked_field_sets_to_join_query(linked_field_sets)  # Could re-return None
+
+                # TODO: Avoid re-compiling a fixed join query
+                join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
+
                 # dataset_id: dataset identifier
                 # data_type_results: dict of data types and corresponding table matches
                 # Append result if:
