@@ -161,6 +161,33 @@ def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str])
             _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set)]
 
 
+def get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
+                        dataset_object_schema, results):
+    # dataset_id: dataset identifier
+    # data_type_results: dict of data types and corresponding table matches
+
+    # Only include useful linked field sets, i.e. 2+ fields
+    linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
+                         if len(lfs) > 1]
+    if join_query is None:
+        # Could re-return None; pass set of all data types to filter out combinations
+        join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
+
+    # TODO: Avoid re-compiling a fixed join query
+    join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
+
+    # Append result if:
+    #  - No join query was specified and there is at least one matching table present in the dataset; or
+    #  - A join query is present and evaluates to True against the dataset.
+    # Need to mark this query as internal, since the federation service "gets" extra privileges here
+    # (joined data isn't explicitly exposed.)
+    if ((join_query_ast is None and any(len(dtr) > 0 for dtr in data_type_results.values())) or
+            (join_query_ast is not None and
+             check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
+                                              internal=True))):
+        results.append(datasets_dict[dataset_id])  # TODO: Make sure all information here is public-level.
+
+
 # noinspection PyAbstractClass
 class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
     """
@@ -257,28 +284,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                   flush=True)
 
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
-                # Only include useful linked field sets, i.e. 2+ fields
-                linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
-                                     if len(lfs) > 1]
-                if join_query is None:
-                    # Could re-return None; pass set of all data types to filter out combinations
-                    join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
-
-                # TODO: Avoid re-compiling a fixed join query
-                join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
-
-                # dataset_id: dataset identifier
-                # data_type_results: dict of data types and corresponding table matches
-                # Append result if:
-                #  - No join query was specified and there is at least one matching table present in the dataset; or
-                #  - A join query is present and evaluates to True against the dataset.
-                # Need to mark this query as internal, since the federation service "gets" extra privileges here
-                # (joined data isn't explicitly exposed.)
-                if ((join_query_ast is None and any(len(dtr) > 0 for dtr in data_type_results.values())) or
-                        (join_query_ast is not None and
-                         check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
-                                                          internal=True))):
-                    results.append(datasets_dict[dataset_id])  # TODO: Make sure all information here is public-level.
+                get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
+                                    dataset_object_schema, results)
 
             self.write({"results": results})
 
