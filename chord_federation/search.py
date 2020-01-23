@@ -185,6 +185,7 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
             (join_query_ast is not None and
              check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
                                               internal=True))):
+        # Append results to aggregator list
         results.append(datasets_dict[dataset_id])  # TODO: Make sure all information here is public-level.
 
 
