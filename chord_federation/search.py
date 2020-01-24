@@ -178,11 +178,15 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
 
     # Append result if:
-    #  - No join query was specified and there is at least one matching table present in the dataset; or
+    #  - No join query was specified,
+    #      and there is at least one matching table present in the dataset,
+    #      and only one data type is being searched; or
     #  - A join query is present and evaluates to True against the dataset.
     # Need to mark this query as internal, since the federation service "gets" extra privileges here
     # (joined data isn't explicitly exposed.)
-    if ((join_query_ast is None and any(len(dtr) > 0 for dtr in data_type_results.values())) or
+    # TODO: Optimize by not fetching if the query isn't going anywhere (i.e. no linked field sets, 2+ data types)
+    if ((join_query_ast is None and any(len(dtr) > 0 for dtr in data_type_results.values())
+         and len(data_type_queries) == 1) or
             (join_query_ast is not None and
              check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
                                               internal=True))):
