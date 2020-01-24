@@ -130,7 +130,7 @@ DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
 
 
 def _linked_fields_to_join_query_fragment(field_1: Tuple[str, List[str]], field_2: Tuple[str, List[str]]):
-    return ["#eq", [field_1[0], "[item]", field_1[1]], [field_2[0], "[item]", field_2[1]]]
+    return ["#eq", ["#resolve", field_1[0], "[item]", field_1[1]], ["#resolve", field_2[0], "[item]", field_2[1]]]
 
 
 def _linked_field_set_to_join_query_rec(pairs):
