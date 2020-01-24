@@ -150,6 +150,8 @@ def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str])
     pairs = tuple(p for p in itertools.combinations(linked_field_sets[0].items(), 2)
                   if p[0][0] in data_type_set and p[1][0] in data_type_set)
 
+    print(itertools.combinations(linked_field_sets[0].items(), 2), pairs, flush=True)
+
     if len(pairs) == 0:
         return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
 
@@ -169,8 +171,8 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     print(dataset_id)
 
     # Only include useful linked field sets, i.e. 2+ fields
-    linked_field_sets = [lfs for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
-                         if len(lfs) > 1]
+    linked_field_sets = [lfs["fields"] for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
+                         if len(lfs["fields"]) > 1]
     print(linked_field_sets)
     if join_query is None:
         # Could re-return None; pass set of all data types to filter out combinations
