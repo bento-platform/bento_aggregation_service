@@ -11,6 +11,8 @@ __all__ = [
     "CHORD_HOST",
     "CHORD_REGISTRY_URL",
 
+    "OIDC_DISCOVERY_URI",
+
     "DB_PATH",
 
     "SERVICE_TYPE",
@@ -33,6 +35,7 @@ CHORD_DEBUG = os.environ.get("CHORD_DEBUG", "false").lower() == "true"
 CHORD_URL = os.environ.get("CHORD_URL", "")
 CHORD_HOST = os.environ.get("CHORD_HOST", urllib.parse.urlparse(CHORD_URL).netloc if CHORD_URL != "" else "")
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
+OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI", None)
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 SERVICE_TYPE = "ca.c3g.chord:federation:{}".format(__version__)
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)

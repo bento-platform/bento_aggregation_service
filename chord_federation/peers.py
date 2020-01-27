@@ -65,7 +65,11 @@ class PeerManager:
                     client=client,
                     peer=peer,
                     path_fragment="api/federation/peers",  # TODO: This should probably be parametrized
-                    request_body=json.dumps({"peers": list(peers), "self": CHORD_URL})
+                    request_body=json.dumps({
+                        "peers": list(peers),
+                        "self": CHORD_URL,
+                        "oidc_discovery_uri": OIDC_DISCOVERY_URI,
+                    })
                 )
 
                 r = await peer_fetch(client=client, peer=peer, path_fragment="api/federation/peers", method="GET")
@@ -172,17 +176,23 @@ class PeerHandler(RequestHandler):
 
             request_data = json.loads(self.request.body)
 
+            peer_oidc_discovery_uri = request_data["oidc_discovery_uri"]
             peer_self = request_data["self"]
             peer_peers = json.loads(self.request.body)["peers"]
             attempted_contact = {CHORD_URL}
 
+            if peer_oidc_discovery_uri != OIDC_DISCOVERY_URI:
+                # Difference in authentication realm, dissuade for now
+                # TODO: Allow cross-realm communication
+                self.clear()
+                self.set_status(403)
+                return
+
             if peer_self in self.application.peer_manager.notifying:
                 # Another request is already being processed from the same node. Assume the data is the same...
                 # TODO: Is this a valid assumption?
-
                 self.clear()
                 self.set_status(200)
-
                 return
 
             self.application.peer_manager.notifying.add(peer_self)
