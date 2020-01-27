@@ -2,6 +2,7 @@ import asyncio
 import itertools
 import json
 import socket
+import sys
 import tornado.gen
 
 from chord_lib.search.data_structure import check_ast_against_data_structure
@@ -77,7 +78,7 @@ class SearchHandler(RequestHandler):
                 # TODO: Less broad of an exception
                 responses.append((peer, None))
                 print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
-                      "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
+                      "    Error: {}".format(datetime.now(), peer, str(e)), flush=True, file=sys.stderr)
 
             finally:
                 peer_queue.task_done()
@@ -297,7 +298,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except HTTPError as e:
             # Metadata service error
-            print("Error from service: {}".format(e))
+            print(f"[CHORD Federation {datetime.now()}] Error from service: {str(e)}")
             self.set_status(500)
 
         except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
@@ -338,6 +339,7 @@ class FederatedDatasetSearchHandler(RequestHandler):
         request = get_request_json(self.request.body)
         if request is None or "data_type_queries" not in request or "join_query" not in request:
             # TODO: Better / more compliant error message
+            print(f"[CHORD Federation {datetime.now()}] Request error", flush=True, file=sys.stderr)
             self.set_status(400)
             return
 
@@ -363,7 +365,8 @@ class FederatedDatasetSearchHandler(RequestHandler):
             try:
                 self.write({"results": {n: r["results"] for n, r in responses}})
 
-            except KeyError:
+            except KeyError as e:
+                print(f"[CHORD Federation {datetime.now()}] Key error: {str(e)}", flush=True, file=sys.stderr)
                 # TODO: Better / more compliant error message
                 self.clear()
                 self.set_status(400)
@@ -377,7 +380,9 @@ class FederatedDatasetSearchHandler(RequestHandler):
             # Wait for workers to exit
             await workers
 
-        except (TypeError, ValueError, SyntaxError):  # errors from query processing
+        except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
+            print(f"[CHORD Federation {datetime.now()}] TypeError / ValueError / SyntaxError: {str(e)}", flush=True,
+                  file=sys.stderr)
             # TODO: Better / more compliant error message
             self.set_status(400)
             await self.finish()
