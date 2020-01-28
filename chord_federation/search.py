@@ -263,6 +263,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
                 if table_dataset_id not in datasets_dict:
                     # TODO: error
+                    print(f"[CHORD Federation {datetime.now()}] Dataset {table_dataset_id} from table not found in "
+                          f"metadata service")
                     continue
 
                 if table_data_type not in dataset_object_schema["properties"]:
@@ -278,14 +280,16 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     }
 
                 if table_data_type not in dataset_objects_dict[table_dataset_id]:
-                    dataset_objects_dict[table_dataset_id][table_data_type] = (await peer_fetch(
-                        client,
-                        SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                        f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
-                        request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                        method="POST",
-                        extra_headers=DATASET_SEARCH_HEADERS
-                    ))["results"] if table_data_type in data_type_queries else []
+                    dataset_objects_dict[table_dataset_id][table_data_type] = []
+
+                dataset_objects_dict[table_dataset_id][table_data_type].extend((await peer_fetch(
+                    client,
+                    SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                    f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
+                    request_body=json.dumps({"query": data_type_queries[table_data_type]}),
+                    method="POST",
+                    extra_headers=DATASET_SEARCH_HEADERS
+                ))["results"] if table_data_type in data_type_queries else [])
 
             print("[CHORD Federation {}] Done fetching individual service search results.".format(datetime.now()),
                   flush=True)
