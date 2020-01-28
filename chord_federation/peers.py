@@ -93,7 +93,6 @@ class PeerManager:
 
             # Search for new peers, and if they exist add them to the queue containing peers to verify
             new_peer = False
-
             for p in peer_peers:
                 if p not in peers_to_check_set and p not in self.contacting and p not in attempted_contact:
                     new_peer = True
@@ -224,7 +223,7 @@ class PeerHandler(RequestHandler):
 
                     # TODO: Check semver for compatibility
                     # TODO: Check JSON schema
-                    if "ca.c3g.chord:federation" in r["type"]:
+                    if r["type"].startswith(f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}"):
                         # Peer two-way communication is possible
                         new_pci = new_pci or not check_peer_exists(c, peer_url)
                         insert_or_ignore_peer(c, peer_url)

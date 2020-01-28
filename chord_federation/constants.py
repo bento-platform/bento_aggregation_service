@@ -15,8 +15,11 @@ __all__ = [
 
     "DB_PATH",
 
+    "SERVICE_ORGANIZATION",
+    "SERVICE_ARTIFACT",
     "SERVICE_TYPE",
     "SERVICE_ID",
+
     "SERVICE_SOCKET",
 
     "SOCKET_INTERNAL",
@@ -37,9 +40,14 @@ CHORD_HOST = os.environ.get("CHORD_HOST", urllib.parse.urlparse(CHORD_URL).netlo
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
 OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI", None)
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
-SERVICE_TYPE = "ca.c3g.chord:federation:{}".format(__version__)
+
+SERVICE_ORGANIZATION = "ca.c3g.chord"
+SERVICE_ARTIFACT = "federation"
+SERVICE_TYPE = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}:{__version__}"
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)
+
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
+
 SOCKET_INTERNAL = os.environ.get("SOCKET_INTERNAL", "/var/run/nginx.sock")  # internal reverse proxy socket
 SOCKET_INTERNAL_DOMAIN = "nginx_internal"
 
