@@ -61,6 +61,7 @@ class PeerManager:
             try:
                 # TODO: Combine requests?
 
+                # Notify peer of current node's existence, OIDC realm, and peer list
                 await peer_fetch(
                     client=client,
                     peer=peer,
@@ -72,6 +73,7 @@ class PeerManager:
                     })
                 )
 
+                # Fetch the peer's peer list
                 r = await peer_fetch(client=client, peer=peer, path_fragment="api/federation/peers", method="GET")
 
                 # If a non-200 response is encountered, an error is raised
@@ -86,7 +88,10 @@ class PeerManager:
                 print("[CHORD Federation] Peer contact error for {} ({})".format(peer, str(e)), flush=True)
                 self.last_errored[peer] = datetime.now().timestamp()
 
+            # Incorporate the peer's peer list into the current set of peers
             peers = peers.union(peer_peers)
+
+            # Search for new peers, and if they exist add them to the queue containing peers to verify
             new_peer = False
 
             for p in peer_peers:
