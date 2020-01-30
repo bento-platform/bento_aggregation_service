@@ -14,7 +14,7 @@ from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import List, Iterable, Optional, Set, Tuple
+from typing import Dict, List, Iterable, Optional, Set, Tuple
 
 from .constants import CHORD_HOST, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
 from .utils import peer_fetch
@@ -132,11 +132,16 @@ async def empty_list():
 DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
 
 
-def _linked_fields_to_join_query_fragment(field_1: Tuple[str, List[str]], field_2: Tuple[str, List[str]]):
+FieldSpec = List[str]
+DataTypeAndField = Tuple[str, FieldSpec]
+DictOfDataTypesAndFields = Dict[str, FieldSpec]
+
+
+def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField):
     return ["#eq", ["#resolve", field_1[0], "[item]", *field_1[1]], ["#resolve", field_2[0], "[item]", *field_2[1]]]
 
 
-def _linked_field_set_to_join_query_rec(pairs):
+def _linked_field_set_to_join_query_rec(pairs) -> List:
     if len(pairs) == 1:
         return _linked_fields_to_join_query_fragment(*pairs[0])
 
@@ -169,9 +174,11 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     # dataset_id: dataset identifier
     # data_type_results: dict of data types and corresponding table matches
 
-    # Only include useful linked field sets, i.e. 2+ fields
-    linked_field_sets = [lfs["fields"] for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
-                         if len(lfs["fields"]) > 1]
+    linked_field_sets: List[DictOfDataTypesAndFields] = [
+        lfs["fields"]
+        for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
+        if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
+    ]
 
     if join_query is None:
         # Could re-return None; pass set of all data types to filter out combinations
