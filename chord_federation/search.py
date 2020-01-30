@@ -5,6 +5,7 @@ import socket
 import sys
 import tornado.gen
 
+from chord_lib.responses.errors import bad_request_error, internal_server_error
 from chord_lib.search.data_structure import check_ast_against_data_structure
 from chord_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
@@ -105,9 +106,9 @@ class SearchHandler(RequestHandler):
             self.write({"results": {n: r["results"] for n, r in responses}})
 
         except KeyError:
-            # TODO: Better / more compliant error message
             self.clear()
             self.set_status(400)
+            self.write(bad_request_error())  # TODO: What message to send?
 
         await self.finish()
 
@@ -208,8 +209,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
     async def post(self):
         request = get_request_json(self.request.body)
         if request is None or "data_type_queries" not in request:
-            # TODO: Better / more compliant error message
             self.set_status(400)
+            self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
             return
 
         # Format: {"data_type": ["#eq", ...]}
@@ -302,13 +303,15 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except HTTPError as e:
             # Metadata service error
-            print(f"[CHORD Federation {datetime.now()}] Error from service: {str(e)}")
+            print(f"[CHORD Federation {datetime.now()}] Error from service: {str(e)}")  # TODO: Better message
             self.set_status(500)
+            self.write(internal_server_error(f"Error from service: {str(e)}"))
 
         except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
             # TODO: Better / more compliant error message
             print(str(e))
             self.set_status(400)
+            self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
 
 
 # noinspection PyAbstractClass
@@ -342,9 +345,10 @@ class FederatedDatasetSearchHandler(RequestHandler):
     async def post(self):
         request = get_request_json(self.request.body)
         if request is None or "data_type_queries" not in request or "join_query" not in request:
-            # TODO: Better / more compliant error message
+            # TODO: Expand out request error messages
             print(f"[CHORD Federation {datetime.now()}] Request error", flush=True, file=sys.stderr)
             self.set_status(400)
+            self.write(bad_request_error("Invalid request format (missing body or data_type_queries or join_query)"))
             return
 
         try:
@@ -371,9 +375,9 @@ class FederatedDatasetSearchHandler(RequestHandler):
 
             except KeyError as e:
                 print(f"[CHORD Federation {datetime.now()}] Key error: {str(e)}", flush=True, file=sys.stderr)
-                # TODO: Better / more compliant error message
                 self.clear()
                 self.set_status(400)
+                self.write(bad_request_error())  # TODO: What message to send here?
 
             await self.finish()
 
@@ -387,6 +391,5 @@ class FederatedDatasetSearchHandler(RequestHandler):
         except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
             print(f"[CHORD Federation {datetime.now()}] TypeError / ValueError / SyntaxError: {str(e)}", flush=True,
                   file=sys.stderr)
-            # TODO: Better / more compliant error message
             self.set_status(400)
-            await self.finish()
+            await self.finish(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message

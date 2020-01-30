@@ -1,6 +1,7 @@
 import json
 import tornado.gen
 
+from chord_lib.responses.errors import bad_request_error, forbidden_error
 from datetime import datetime, timedelta
 from sqlite3 import Connection
 from tornado.httpclient import AsyncHTTPClient, HTTPError
@@ -190,13 +191,14 @@ class PeerHandler(RequestHandler):
                 # TODO: Allow cross-realm communication
                 self.clear()
                 self.set_status(403)
+                await self.finish(forbidden_error("OIDC realm mismatch"))
                 return
 
             if peer_self in self.application.peer_manager.notifying:
                 # Another request is already being processed from the same node. Assume the data is the same...
                 # TODO: Is this a valid assumption?
                 self.clear()
-                self.set_status(200)
+                self.set_status(200)  # TODO: Wrong response code?
                 return
 
             self.application.peer_manager.notifying.add(peer_self)
@@ -248,3 +250,4 @@ class PeerHandler(RequestHandler):
             # TODO: Better / more compliant error message
             self.clear()
             self.set_status(400)
+            await self.finish(bad_request_error("Invalid request body or other Python KeyError"))  # TODO: Better msg
