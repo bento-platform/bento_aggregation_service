@@ -10,7 +10,7 @@ setuptools.setup(
     version="0.1.0",
 
     python_requires=">=3.6",
-    install_requires=["chord_lib==0.1.0", "tornado>=6.0,<6.1"],
+    install_requires=["chord_lib==0.2.0", "tornado>=6.0,<6.1"],
 
     author="David Lougheed",
     author_email="david.lougheed@mail.mcgill.ca",
