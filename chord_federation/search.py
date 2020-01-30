@@ -95,6 +95,7 @@ class SearchHandler(RequestHandler):
         if request is None:
             # TODO: Better / more compliant error message
             self.set_status(400)
+            await self.finish(bad_request_error("Invalid request format (missing body)"))
             return
 
         peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
@@ -141,7 +142,7 @@ def _linked_field_set_to_join_query_rec(pairs):
 
     return ["#and",
             _linked_fields_to_join_query_fragment(*pairs[0]),
-            _linked_fields_to_join_query_fragment(*pairs[1:])]
+            _linked_field_set_to_join_query_rec(pairs[1:])]
 
 
 def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str]) -> Optional[List]:
