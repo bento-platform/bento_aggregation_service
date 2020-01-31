@@ -6,7 +6,7 @@ with open("README.md", "r") as rf:
     long_description = rf.read()
 
 setuptools.setup(
-    name="chord_federation",
+    name="chord_federation_service",
     version="0.1.0",
 
     python_requires=">=3.6",
@@ -19,14 +19,14 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
 
-    packages=["chord_federation"],
+    packages=["chord_federation_service"],
     include_package_data=True,
 
     entry_points={
-        "console_scripts": ["chord_federation=chord_federation.app:run"]
+        "console_scripts": ["chord_federation_service=chord_federation_service.app:run"]
     },
 
-    url="https://github.com/c3g/chord_federation",
+    url="https://github.com/c3g/chord_federation_service",
     license="LGPLv3",
     classifiers=[
         "Programming Language :: Python :: 3",

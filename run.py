@@ -4,8 +4,8 @@ import os
 import tornado.ioloop
 
 
-from chord_federation.app import application
-from chord_federation.constants import CHORD_URLS_SET
+from chord_federation_service.app import application
+from chord_federation_service.constants import CHORD_URLS_SET
 
 if __name__ == "__main__":
     if not CHORD_URLS_SET:

@@ -1,4 +1,4 @@
-# CHORD Federation
+# CHORD Federation Service
 
 A service for federated search between CHORD nodes.
 
