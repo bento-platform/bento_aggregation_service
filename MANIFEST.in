@@ -1,1 +1,1 @@
-include chord_federation/schema.sql
+include chord_federation_service/schema.sql
