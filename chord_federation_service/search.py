@@ -7,7 +7,7 @@ import tornado.gen
 
 from chord_lib.responses.errors import bad_request_error, internal_server_error
 from chord_lib.search.data_structure import check_ast_against_data_structure
-from chord_lib.search.queries import convert_query_to_ast_and_preprocess
+from chord_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
@@ -169,6 +169,16 @@ def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str])
             _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set)]
 
 
+def _augment_resolves(query: Query, prefix: Tuple[str, ...]):
+    if not isinstance(query, list) or len(query) == 0 or len(query[0]) == 0 or query[0][0] != "#":
+        return query
+
+    if query[0] == "#resolve":
+        return ["#resolve", *prefix, *query[1:]]
+
+    return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
+
+
 def get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
                         dataset_object_schema, results):
     # dataset_id: dataset identifier
@@ -183,6 +193,10 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     if join_query is None:
         # Could re-return None; pass set of all data types to filter out combinations
         join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
+    else:
+        # Combine the join query with data type queries to be able to link across fixed [item]s
+        for dt, q in data_type_queries:
+            join_query = ["#and", join_query, _augment_resolves(q, (dt, "[item]"))]
 
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
@@ -222,7 +236,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             return
 
         # Format: {"data_type": ["#eq", ...]}
-        data_type_queries = request["data_type_queries"]
+        data_type_queries: Dict[str, Query] = request["data_type_queries"]
 
         # Format: normal query, using data types for join conditions
         join_query = request.get("join_query", None)
