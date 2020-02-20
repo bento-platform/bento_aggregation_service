@@ -193,7 +193,8 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     if join_query is None:
         # Could re-return None; pass set of all data types to filter out combinations
         join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
-    else:
+
+    if join_query is not None:  # still isn't None...
         # Combine the join query with data type queries to be able to link across fixed [item]s
         for dt, q in data_type_queries:
             join_query = ["#and", join_query, _augment_resolves(q, (dt, "[item]"))]
