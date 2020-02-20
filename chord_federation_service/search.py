@@ -394,7 +394,7 @@ class FederatedDatasetSearchHandler(RequestHandler):
             await peer_queue.join()
 
             try:
-                self.write({"results": {n: r["results"] for n, r in responses}})
+                self.write({"results": {n: r["results"] if r is not None else None for n, r in responses}})
 
             except KeyError as e:
                 print(f"[CHORD Federation {datetime.now()}] Key error: {str(e)}", flush=True, file=sys.stderr)
