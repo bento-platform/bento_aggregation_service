@@ -199,8 +199,12 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
         for dt, q in data_type_queries.items():
             join_query = ["#and", join_query, _augment_resolves(q, (dt, "[item]"))]
 
+        print(f"[CHORD Federation {datetime.now()}] Generated join query: {join_query}", flush=True)
+
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
+
+    print(f"[CHORD Federation {datetime.now()}] Compiled join query: {join_query_ast}", flush=True)
 
     # Append result if:
     #  - No join query was specified,
