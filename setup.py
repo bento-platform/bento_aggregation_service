@@ -7,10 +7,10 @@ with open("README.md", "r") as rf:
 
 setuptools.setup(
     name="chord_federation_service",
-    version="0.2.0",
+    version="0.3.0",
 
     python_requires=">=3.6",
-    install_requires=["chord_lib==0.3.0", "tornado>=6.0,<6.1"],
+    install_requires=["chord_lib==0.4.0", "tornado>=6.0,<6.1"],
 
     author="David Lougheed",
     author_email="david.lougheed@mail.mcgill.ca",
