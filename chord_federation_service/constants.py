@@ -54,6 +54,6 @@ SOCKET_INTERNAL_DOMAIN = "nginx_internal"
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
-TIMEOUT = 120
-WORKERS = 10
+TIMEOUT = 120  # seconds
+WORKERS = len(os.sched_getaffinity(0))
 LAST_ERRORED_CACHE_TIME = 30
