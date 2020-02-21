@@ -197,7 +197,7 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
     if join_query is not None:  # still isn't None...
         # Combine the join query with data type queries to be able to link across fixed [item]s
         for dt, q in data_type_queries.items():
-            join_query = ["#and", join_query, _augment_resolves(q, (dt, "[item]"))]
+            join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
 
         print(f"[CHORD Federation {datetime.now()}] Generated join query: {join_query}", flush=True)
 
