@@ -19,7 +19,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
 
-    packages=["chord_federation_service"],
+    packages=setuptools.find_packages(),
     include_package_data=True,
 
     entry_points={
