@@ -9,7 +9,15 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler
 from typing import Dict, List, Set
 
-from .constants import *
+from .constants import (
+    CHORD_URL,
+    LAST_ERRORED_CACHE_TIME,
+    OIDC_DISCOVERY_URI,
+    SERVICE_ORGANIZATION,
+    SERVICE_ARTIFACT,
+    SERVICE_NAME,
+    WORKERS,
+)
 from .db import check_peer_exists, insert_or_ignore_peer
 from .utils import peer_fetch
 
@@ -38,7 +46,7 @@ class PeerManager:
             if (peer in self.last_errored and
                     datetime.now().timestamp() - self.last_errored[peer] < LAST_ERRORED_CACHE_TIME):
                 # Avoid repetitively hitting dead nodes
-                print("[CHORD Federation {}] Skipping dead peer {}".format(datetime.now(), peer), flush=True)
+                print(f"[{SERVICE_NAME} {datetime.now()}] Skipping dead peer {peer}", flush=True)
                 peers_to_check_set.remove(peer)
                 peers_to_check.task_done()
                 continue
@@ -49,13 +57,13 @@ class PeerManager:
                 continue
 
             if peer in self.contacting:
-                print("[CHORD Federation {}] Avoiding race on peer {}".format(datetime.now(), peer), flush=True)
+                print(f"[{SERVICE_NAME} {datetime.now()}] Avoiding race on peer {peer}", flush=True)
                 # TODO: Do we call task_done() here?
                 continue
 
             self.contacting.add(peer)
 
-            print("[CHORD Federation {}] Contacting peer {}".format(datetime.now(), peer), flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] Contacting peer {peer}", flush=True)
 
             peer_peers: List[str] = []
 
@@ -83,10 +91,10 @@ class PeerManager:
                 peer_peers = r["peers"]
 
             except IndexError:
-                print(f"[CHORD Federation] Error: Invalid 200 response returned by {peer}.", flush=True)
+                print(f"[{SERVICE_NAME}] Error: Invalid 200 response returned by {peer}.", flush=True)
 
             except HTTPError as e:
-                print("[CHORD Federation] Peer contact error for {} ({})".format(peer, str(e)), flush=True)
+                print(f"[{SERVICE_NAME}] Peer contact error for {peer} ({str(e)})", flush=True)
                 self.last_errored[peer] = datetime.now().timestamp()
 
             # Incorporate the peer's peer list into the current set of peers
@@ -234,8 +242,8 @@ class PeerHandler(RequestHandler):
                 except Exception as e:  # Parse error or HTTP error
                     # TODO: Better / more compliant error message, don't return early
                     self.application.peer_manager.last_errored[peer_url] = datetime.now().timestamp()
-                    print("[CHORD Federation {}] Error when processing notify from peer {}.\n"
-                          "    Error: {}".format(datetime.now(), peer_url, str(e)), flush=True)
+                    print(f"[{SERVICE_NAME} {datetime.now()}] Error when processing notify from peer {peer_url}.\n"
+                          f"    Error: {str(e)}", flush=True)
 
                 finally:
                     attempted_contact.add(peer_url)

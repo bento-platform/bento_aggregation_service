@@ -1,13 +1,21 @@
 import json
+import socket
 
 from tornado.httpclient import AsyncHTTPClient
-from typing import Optional
+from tornado.netutil import Resolver
+from tornado.queues import Queue
+from typing import Iterable, Optional
 from urllib.parse import urljoin
 
-from .constants import CHORD_DEBUG, TIMEOUT
+from .constants import CHORD_DEBUG, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN, TIMEOUT
 
 
-__all__ = ["peer_fetch"]
+__all__ = [
+    "peer_fetch",
+    "ServiceSocketResolver",
+    "get_request_json",
+    "get_new_peer_queue",
+]
 
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
@@ -29,3 +37,41 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
     )
 
     return json.loads(r.body) if r.code != 204 else None
+
+
+# TODO: Try to use OverrideResolver instead
+class ServiceSocketResolver(Resolver):
+    # noinspection PyAttributeOutsideInit
+    def initialize(self, resolver):  # tornado Configurable init
+        self.resolver = resolver
+
+    def close(self):
+        self.resolver.close()
+
+    async def resolve(self, host, port, *args, **kwargs):
+        if host == SOCKET_INTERNAL_DOMAIN:
+            return [(socket.AF_UNIX, SOCKET_INTERNAL)]
+        return await self.resolver.resolve(host, port, *args, **kwargs)
+
+
+def get_request_json(request_body: bytes) -> Optional[dict]:
+    request = None
+
+    try:
+        request = json.loads(request_body)
+    except json.JSONDecodeError:
+        pass
+
+    # TODO: Validate against a JSON schema or OpenAPI
+    if not isinstance(request, dict):
+        request = None
+
+    return request
+
+
+def get_new_peer_queue(peers: Iterable) -> Queue:
+    peer_queue = Queue()
+    for peer in peers:
+        peer_queue.put_nowait(peer)
+
+    return peer_queue

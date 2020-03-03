@@ -1,9 +1,6 @@
 import asyncio
 import itertools
 import json
-import socket
-import sys
-import tornado.gen
 
 from chord_lib.responses.errors import bad_request_error, internal_server_error
 from chord_lib.search.data_structure import check_ast_against_data_structure
@@ -11,122 +8,18 @@ from chord_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
-from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import Dict, List, Iterable, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
-from .constants import CHORD_HOST, WORKERS, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN
-from .utils import peer_fetch
-
-SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
-
-
-# TODO: Try to use OverrideResolver instead
-class ServiceSocketResolver(Resolver):
-    # noinspection PyAttributeOutsideInit
-    def initialize(self, resolver):  # tornado Configurable init
-        self.resolver = resolver
-
-    def close(self):
-        self.resolver.close()
-
-    async def resolve(self, host, port, *args, **kwargs):
-        if host == SOCKET_INTERNAL_DOMAIN:
-            return [(socket.AF_UNIX, SOCKET_INTERNAL)]
-        return await self.resolver.resolve(host, port, *args, **kwargs)
+from ..constants import CHORD_HOST, SERVICE_NAME, SOCKET_INTERNAL_URL
+from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
 
 
 AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
-def get_request_json(request_body: bytes) -> Optional[dict]:
-    request = None
-
-    try:
-        request = json.loads(request_body)
-    except json.JSONDecodeError:
-        pass
-
-    # TODO: Validate against a JSON schema or OpenAPI
-    if not isinstance(request, dict):
-        request = None
-
-    return request
-
-
-def get_new_peer_queue(peers: Iterable) -> Queue:
-    peer_queue = Queue()
-    for peer in peers:
-        peer_queue.put_nowait(peer)
-
-    return peer_queue
-
-
-# noinspection PyAbstractClass
-class SearchHandler(RequestHandler):
-    async def search_worker(self, peer_queue: Queue, search_path: str, responses: list):
-        client = AsyncHTTPClient()
-
-        async for peer in peer_queue:
-            if peer is None:  # Exit signal
-                return
-
-            try:
-                responses.append((peer, await peer_fetch(client, peer, f"api/{search_path}", self.request.body)))
-
-            except Exception as e:
-                # TODO: Less broad of an exception
-                responses.append((peer, None))
-                print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
-                      "    Error: {}".format(datetime.now(), peer, str(e)), flush=True, file=sys.stderr)
-
-            finally:
-                peer_queue.task_done()
-
-    async def options(self, _search_path: str):
-        self.set_status(204)
-        await self.finish()
-
-    async def post(self, search_path: str):
-        # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
-
-        request = get_request_json(self.request.body)
-        if request is None:
-            # TODO: Better / more compliant error message
-            self.set_status(400)
-            await self.finish(bad_request_error("Invalid request format (missing body)"))
-            return
-
-        peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
-        responses = []
-        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
-        await peer_queue.join()
-
-        try:
-            self.write({"results": {n: r["results"] for n, r in responses}})
-
-        except KeyError:
-            self.clear()
-            self.set_status(400)
-            self.write(bad_request_error())  # TODO: What message to send?
-
-        await self.finish()
-
-        # Trigger exit for all workers
-        for _ in range(WORKERS):
-            peer_queue.put_nowait(None)
-
-        # Wait for workers to exit
-        await workers
-
-
-class QueryError(Exception):
-    pass
-
-
-async def empty_list():
-    return []
+__all__ = ["DatasetSearchHandler"]
 
 
 DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
@@ -203,12 +96,12 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
         for dt, q in data_type_queries.items():
             join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
 
-        print(f"[CHORD Federation {datetime.now()}] Generated join query: {join_query}", flush=True)
+        print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {join_query}", flush=True)
 
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
 
-    print(f"[CHORD Federation {datetime.now()}] Compiled join query: {join_query_ast}", flush=True)
+    print(f"[{SERVICE_NAME} {datetime.now()}] Compiled join query: {join_query_ast}", flush=True)
 
     # Append result if:
     #  - No join query was specified,
@@ -295,7 +188,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
                 if table_dataset_id not in datasets_dict:
                     # TODO: error
-                    print(f"[CHORD Federation {datetime.now()}] Dataset {table_dataset_id} from table not found in "
+                    print(f"[{SERVICE_NAME} {datetime.now()}] Dataset {table_dataset_id} from table not found in "
                           f"metadata service")
                     continue
 
@@ -323,8 +216,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     extra_headers=DATASET_SEARCH_HEADERS
                 ))["results"] if table_data_type in data_type_queries else [])
 
-            print("[CHORD Federation {}] Done fetching individual service search results.".format(datetime.now()),
-                  flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
                 get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
@@ -334,7 +226,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except HTTPError as e:
             # Metadata service error
-            print(f"[CHORD Federation {datetime.now()}] Error from service: {str(e)}")  # TODO: Better message
+            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}")  # TODO: Better message
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -343,84 +235,3 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             print(str(e))
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
-
-
-# noinspection PyAbstractClass
-class FederatedDatasetSearchHandler(RequestHandler):
-    @staticmethod
-    async def search_worker(peer_queue: Queue, request_body: bytes, responses: list):
-        client = AsyncHTTPClient()
-
-        async for peer in peer_queue:
-            if peer is None:
-                # Exit signal
-                return
-
-            try:
-                responses.append((peer, await peer_fetch(client, peer, "api/federation/dataset-search",
-                                                         request_body=request_body, method="POST")))
-
-            except HTTPError as e:
-                # TODO: Less broad of an exception
-                responses.append((peer, None))
-                print("[CHORD Federation {}] Connection issue or timeout with peer {}.\n"
-                      "    Error: {}".format(datetime.now(), peer, str(e)), flush=True)
-
-            finally:
-                peer_queue.task_done()
-
-    async def options(self):
-        self.set_status(204)
-        await self.finish()
-
-    async def post(self):
-        request = get_request_json(self.request.body)
-        if request is None or "data_type_queries" not in request or "join_query" not in request:
-            # TODO: Expand out request error messages
-            print(f"[CHORD Federation {datetime.now()}] Request error", flush=True, file=sys.stderr)
-            self.set_status(400)
-            self.write(bad_request_error("Invalid request format (missing body or data_type_queries or join_query)"))
-            return
-
-        try:
-            # Check for query errors
-
-            # Try compiling join query to make sure it works (if it's not null, i.e. unspecified)
-            if request["join_query"] is not None:
-                convert_query_to_ast_and_preprocess(request["join_query"])
-
-            for q in request["data_type_queries"].values():
-                # Try compiling each query to make sure it works
-                convert_query_to_ast_and_preprocess(q)
-
-            # Federate out requests
-
-            peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
-            responses = []
-            workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
-                                         for _ in range(WORKERS)])
-            await peer_queue.join()
-
-            try:
-                self.write({"results": {n: r["results"] if r is not None else None for n, r in responses}})
-
-            except KeyError as e:
-                print(f"[CHORD Federation {datetime.now()}] Key error: {str(e)}", flush=True, file=sys.stderr)
-                self.clear()
-                self.set_status(400)
-                self.write(bad_request_error())  # TODO: What message to send here?
-
-            await self.finish()
-
-            # Trigger exit for all workers
-            for _ in range(WORKERS):
-                peer_queue.put_nowait(None)
-
-            # Wait for workers to exit
-            await workers
-
-        except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-            print(f"[CHORD Federation {datetime.now()}] TypeError / ValueError / SyntaxError: {str(e)}", flush=True,
-                  file=sys.stderr)
-            self.set_status(400)
-            await self.finish(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message

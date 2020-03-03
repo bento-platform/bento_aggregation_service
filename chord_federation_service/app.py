@@ -10,7 +10,9 @@ from tornado.web import RequestHandler, url
 from .constants import SERVICE_ID, SERVICE_TYPE, SERVICE_NAME, CHORD_URLS_SET, BASE_PATH, SERVICE_SOCKET
 from .db import peer_db
 from .peers import PeerManager, PeerHandler
-from .search import DatasetSearchHandler, FederatedDatasetSearchHandler, SearchHandler
+from .search.dataset_search import DatasetSearchHandler
+from .search.federated_dataset_search import FederatedDatasetSearchHandler
+from .search.search import SearchHandler
 
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
