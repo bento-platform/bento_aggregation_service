@@ -195,6 +195,10 @@ def get_dataset_results(data_type_queries, join_query, data_type_results, datase
         join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
 
     if join_query is not None:  # still isn't None...
+        # TODO: Pre-filter data_type_results to avoid a billion index combinations - return specific set of combos
+        # TODO: Allow passing a non-empty index fixation to search to save time and start somewhere
+        # TODO: Or should search filter the data object (including sub-arrays) as it goes, returning it at the end?
+
         # Combine the join query with data type queries to be able to link across fixed [item]s
         for dt, q in data_type_queries.items():
             join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
