@@ -28,13 +28,14 @@ DATASET_SEARCH_HEADERS = {"Host": CHORD_HOST}
 FieldSpec = List[str]
 DataTypeAndField = Tuple[str, FieldSpec]
 DictOfDataTypesAndFields = Dict[str, FieldSpec]
+LinkedFieldSetList = List[DictOfDataTypesAndFields]
 
 
-def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField):
+def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField) -> Query:
     return ["#eq", ["#resolve", field_1[0], "[item]", *field_1[1]], ["#resolve", field_2[0], "[item]", *field_2[1]]]
 
 
-def _linked_field_set_to_join_query_rec(pairs) -> List:
+def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
     if len(pairs) == 1:
         return _linked_fields_to_join_query_fragment(*pairs[0])
 
@@ -43,7 +44,7 @@ def _linked_field_set_to_join_query_rec(pairs) -> List:
             _linked_field_set_to_join_query_rec(pairs[1:])]
 
 
-def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str]) -> Optional[List]:
+def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
     if len(linked_field_sets) == 0:
         return None
 
@@ -62,7 +63,7 @@ def _linked_field_sets_to_join_query(linked_field_sets, data_type_set: Set[str])
             _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set)]
 
 
-def _augment_resolves(query: Query, prefix: Tuple[str, ...]):
+def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     if not isinstance(query, list) or len(query) == 0 or len(query[0]) == 0 or query[0][0] != "#":
         return query
 
@@ -72,12 +73,14 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]):
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
-def get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
-                        dataset_object_schema, results):
+def get_dataset_results(data_type_queries: Dict[str, Query], join_query: Query, data_type_results: Dict[str, list],
+                        datasets_dict: Dict[str, dict], dataset_id: str, dataset_object_schema: dict, results: list):
+    # TODO: Check dataset, table-level authorizations
+
     # dataset_id: dataset identifier
     # data_type_results: dict of data types and corresponding table matches
 
-    linked_field_sets: List[DictOfDataTypesAndFields] = [
+    linked_field_sets: LinkedFieldSetList = [
         lfs["fields"]
         for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
         if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
