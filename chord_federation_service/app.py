@@ -7,7 +7,7 @@ from tornado.httpserver import HTTPServer
 from tornado.netutil import bind_unix_socket
 from tornado.web import RequestHandler, url
 
-from .constants import *
+from .constants import SERVICE_ID, SERVICE_TYPE, SERVICE_NAME, CHORD_URLS_SET, BASE_PATH, SERVICE_SOCKET
 from .db import peer_db
 from .peers import PeerManager, PeerHandler
 from .search import DatasetSearchHandler, FederatedDatasetSearchHandler, SearchHandler
@@ -24,7 +24,7 @@ class ServiceInfoHandler(RequestHandler):
 
         self.write({
             "id": SERVICE_ID,
-            "name": "CHORD Federation",  # TODO: Should be globally unique?
+            "name": SERVICE_NAME,  # TODO: Should be globally unique?
             "type": SERVICE_TYPE,
             "description": "Federation service for a CHORD application.",
             "organization": {
@@ -57,7 +57,7 @@ application = Application(peer_db, BASE_PATH)
 
 def run():
     if not CHORD_URLS_SET:
-        print("[CHORD Federation] No CHORD URLs given, terminating...")
+        print(f"[{SERVICE_NAME}] No CHORD URLs given, terminating...")
         exit(1)
 
     server = HTTPServer(application)

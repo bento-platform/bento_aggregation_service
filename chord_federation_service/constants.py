@@ -19,6 +19,7 @@ __all__ = [
     "SERVICE_ARTIFACT",
     "SERVICE_TYPE",
     "SERVICE_ID",
+    "SERVICE_NAME",
 
     "SERVICE_SOCKET",
 
@@ -46,6 +47,7 @@ SERVICE_ORGANIZATION = "ca.c3g.chord"
 SERVICE_ARTIFACT = "federation"
 SERVICE_TYPE = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}:{__version__}"
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)
+SERVICE_NAME = "CHORD Federation"
 
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 
