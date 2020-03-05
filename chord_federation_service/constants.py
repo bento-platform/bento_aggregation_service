@@ -58,6 +58,6 @@ SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
-TIMEOUT = 120  # seconds
+TIMEOUT = 240  # seconds
 WORKERS = len(os.sched_getaffinity(0))
 LAST_ERRORED_CACHE_TIME = 30
