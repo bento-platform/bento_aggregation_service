@@ -159,6 +159,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             # TODO: Reduce API call with combined renderers?
             # TODO: Handle pagination
+            # TODO: Why fetch projects instead of datasets?
             # Use Unix socket resolver
             projects, table_ownerships = await asyncio.gather(
                 peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/projects", method="GET",
@@ -196,6 +197,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     continue
 
                 if table_data_type not in dataset_object_schema["properties"]:
+                    # Fetch schema for data type if needed
                     dataset_object_schema["properties"][table_data_type] = {
                         "type": "array",
                         "items": (await peer_fetch(
@@ -229,7 +231,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except HTTPError as e:
             # Metadata service error
-            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}")  # TODO: Better message
+            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", flush=True)  # TODO: Better message
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 

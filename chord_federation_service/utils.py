@@ -7,7 +7,7 @@ from tornado.queues import Queue
 from typing import Iterable, Optional
 from urllib.parse import urljoin
 
-from .constants import CHORD_DEBUG, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN, TIMEOUT
+from .constants import CHORD_DEBUG, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN, SERVICE_NAME, TIMEOUT
 
 
 __all__ = [
@@ -21,8 +21,7 @@ __all__ = [
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
                      method: str = "POST", extra_headers: Optional[dict] = None):
     if CHORD_DEBUG:
-        print("[CHORD Federation] [DEBUG] {} to {}: {}".format(method, urljoin(peer, path_fragment), request_body),
-              flush=True)
+        print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
 
     r = await client.fetch(
         urljoin(peer, path_fragment),
