@@ -73,36 +73,21 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
-def get_dataset_results(data_type_queries: Dict[str, Query], join_query: Query, data_type_results: Dict[str, list],
-                        datasets_dict: Dict[str, dict], dataset_id: str, dataset_object_schema: dict, results: list):
+def get_dataset_results(
+    data_type_queries: Dict[str, Query],
+    dataset_join_query: Query,
+    data_type_results: Dict[str, list],
+    dataset: dict,
+    dataset_object_schema: dict,
+    results: list
+):
     # TODO: Check dataset, table-level authorizations
 
     # dataset_id: dataset identifier
     # data_type_results: dict of data types and corresponding table matches
 
-    linked_field_sets: LinkedFieldSetList = [
-        lfs["fields"]
-        for lfs in datasets_dict[dataset_id].get("linked_field_sets", [])
-        if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
-    ]
-
-    if join_query is None:
-        # Could re-return None; pass set of all data types to filter out combinations
-        join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries.keys()))
-
-    if join_query is not None:  # still isn't None...
-        # TODO: Pre-filter data_type_results to avoid a billion index combinations - return specific set of combos
-        # TODO: Allow passing a non-empty index fixation to search to save time and start somewhere
-        # TODO: Or should search filter the data object (including sub-arrays) as it goes, returning it at the end?
-
-        # Combine the join query with data type queries to be able to link across fixed [item]s
-        for dt, q in data_type_queries.items():
-            join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
-
-        print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {join_query}", flush=True)
-
     # TODO: Avoid re-compiling a fixed join query
-    join_query_ast = convert_query_to_ast_and_preprocess(join_query) if join_query is not None else None
+    join_query_ast = convert_query_to_ast_and_preprocess(dataset_join_query) if dataset_join_query is not None else None
 
     print(f"[{SERVICE_NAME} {datetime.now()}] Compiled join query: {join_query_ast}", flush=True)
 
@@ -120,7 +105,7 @@ def get_dataset_results(data_type_queries: Dict[str, Query], join_query: Query, 
              check_ast_against_data_structure(join_query_ast, data_type_results, dataset_object_schema,
                                               internal=True))):
         # Append results to aggregator list
-        results.append(datasets_dict[dataset_id])  # TODO: Make sure all information here is public-level.
+        results.append(dataset)  # TODO: Make sure all information here is public-level.
 
 
 # noinspection PyAbstractClass
@@ -169,12 +154,14 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             )
 
             datasets_dict = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
-            dataset_objects_dict = {d: {} for d in datasets_dict.keys()}
+            dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict.keys()}
 
             dataset_object_schema = {
                 "type": "object",
                 "properties": {}
             }
+
+            dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict.keys()}
 
             # Include metadata table explicitly
             # TODO: This should probably be auto-produced by the metadata service
@@ -196,36 +183,83 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                           f"metadata service")
                     continue
 
-                if table_data_type not in dataset_object_schema["properties"]:
-                    # Fetch schema for data type if needed
-                    dataset_object_schema["properties"][table_data_type] = {
-                        "type": "array",
-                        "items": (await peer_fetch(
-                            client,
-                            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                            f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
-                            method="GET",
-                            extra_headers=DATASET_SEARCH_HEADERS
-                        )) if table_data_type in data_type_queries else {}
-                    }
-
                 if table_data_type not in dataset_objects_dict[table_dataset_id]:
                     dataset_objects_dict[table_dataset_id][table_data_type] = []
 
-                dataset_objects_dict[table_dataset_id][table_data_type].extend((await peer_fetch(
-                    client,
-                    SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                    f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
-                    request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                    method="POST",
-                    extra_headers=DATASET_SEARCH_HEADERS
-                ))["results"] if table_data_type in data_type_queries else [])
+                linked_field_sets = [
+                    lfs["fields"]
+                    for lfs in datasets_dict[table_dataset_id].get("linked_field_sets", [])
+                    if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
+                ]
+
+                dataset_join_query = join_query
+
+                if dataset_join_query is None:
+                    # Could re-return None; pass set of all data types to filter out combinations
+                    dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets,
+                                                                          set(data_type_queries.keys()))
+
+                if dataset_join_query is not None:  # still isn't None...
+                    # TODO: Pre-filter data_type_results to avoid a billion index combinations - return specific set of
+                    #  combos
+                    # TODO: Allow passing a non-empty index fixation to search to save time and start somewhere
+                    # TODO: Or should search filter the data object (including sub-arrays) as it goes, returning it at
+                    #  the end?
+
+                    # Combine the join query with data type queries to be able to link across fixed [item]s
+                    for dt, q in data_type_queries.items():
+                        dataset_join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
+
+                    print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {dataset_join_query}", flush=True)
+
+                    if table_data_type not in dataset_object_schema["properties"]:
+                        # Fetch schema for data type if needed
+                        dataset_object_schema["properties"][table_data_type] = {
+                            "type": "array",
+                            "items": (await peer_fetch(
+                                client,
+                                SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                                f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
+                                method="GET",
+                                extra_headers=DATASET_SEARCH_HEADERS
+                            )) if table_data_type in data_type_queries else {}
+                        }
+
+                    dataset_objects_dict[table_dataset_id][table_data_type].extend((await peer_fetch(
+                        client,
+                        SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                        f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
+                        request_body=json.dumps({"query": data_type_queries[table_data_type]}),
+                        method="POST",
+                        extra_headers=DATASET_SEARCH_HEADERS
+                    ))["results"] if table_data_type in data_type_queries else [])
+
+                else:
+                    # Don't need to fetch results for joining; just check individual tables (which is much faster)
+                    # using the public discovery endpoint.
+
+                    dataset_objects_dict[table_dataset_id][table_data_type].append(await peer_fetch(
+                        client,
+                        SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                        f"api/{t['service_artifact']}/tables/{t['table_id']}/search",
+                        request_body=json.dumps({"query": data_type_queries[table_data_type]}),
+                        method="POST",
+                        extra_headers=DATASET_SEARCH_HEADERS
+                    ))
+
+                dataset_join_queries[table_dataset_id] = dataset_join_query
 
             print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
-                get_dataset_results(data_type_queries, join_query, data_type_results, datasets_dict, dataset_id,
-                                    dataset_object_schema, results)
+                get_dataset_results(
+                    data_type_queries,
+                    dataset_join_queries[dataset_id],
+                    data_type_results,
+                    datasets_dict[dataset_id],
+                    dataset_object_schema,
+                    results
+                )
 
             self.write({"results": results})
 
