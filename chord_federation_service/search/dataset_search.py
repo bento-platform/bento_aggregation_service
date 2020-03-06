@@ -12,11 +12,11 @@ from tornado.web import RequestHandler
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from ..constants import CHORD_HOST, SERVICE_NAME, SOCKET_INTERNAL_URL
+from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
 
 
-AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
+AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 __all__ = ["DatasetSearchHandler"]

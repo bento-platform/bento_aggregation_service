@@ -15,6 +15,8 @@ __all__ = [
 
     "DB_PATH",
 
+    "MAX_BUFFER_SIZE",
+
     "SERVICE_ORGANIZATION",
     "SERVICE_ARTIFACT",
     "SERVICE_TYPE",
@@ -58,6 +60,7 @@ SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
-TIMEOUT = 240  # seconds
+TIMEOUT = 180  # seconds
 WORKERS = len(os.sched_getaffinity(0))
 LAST_ERRORED_CACHE_TIME = 30
+MAX_BUFFER_SIZE = 1024 ** 3  # 1 gigabyte; maximum size a response can be

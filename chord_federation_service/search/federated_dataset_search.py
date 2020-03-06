@@ -9,11 +9,11 @@ from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from ..constants import SERVICE_NAME, WORKERS
+from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue
 
 
-AsyncHTTPClient.configure(None, resolver=ServiceSocketResolver(resolver=Resolver()))
+AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 __all__ = ["FederatedDatasetSearchHandler"]
