@@ -238,14 +238,17 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                     # Don't need to fetch results for joining; just check individual tables (which is much faster)
                     # using the public discovery endpoint.
 
-                    dataset_objects_dict[table_dataset_id][table_data_type] = [await peer_fetch(
-                        client,
-                        SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                        f"api/{t['service_artifact']}/tables/{t['table_id']}/search",
-                        request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                        method="POST",
-                        extra_headers=DATASET_SEARCH_HEADERS
-                    )] if table_data_type in data_type_queries else []
+                    if table_data_type in data_type_queries:
+                        if await peer_fetch(
+                            client,
+                            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                            f"api/{t['service_artifact']}/tables/{t['table_id']}/search",
+                            request_body=json.dumps({"query": data_type_queries[table_data_type]}),
+                            method="POST",
+                            extra_headers=DATASET_SEARCH_HEADERS
+                        ):
+                            # Here, the array of 1 True is a dummy value to give a positive result
+                            dataset_objects_dict[table_dataset_id][table_data_type] = [True]
 
                 dataset_join_queries[table_dataset_id] = dataset_join_query
 
