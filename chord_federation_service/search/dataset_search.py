@@ -246,7 +246,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                             request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                             method="POST",
                             extra_headers=DATASET_SEARCH_HEADERS
-                        ):
+                        ):  # True return value, i.e. the query matched something
                             # Here, the array of 1 True is a dummy value to give a positive result
                             dataset_objects_dict[table_dataset_id][table_data_type] = [True]
 
