@@ -140,8 +140,6 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             client = AsyncHTTPClient()
 
-            # TODO: Local query using sockets?
-
             # TODO: Reduce API call with combined renderers?
             # TODO: Handle pagination
             # TODO: Why fetch projects instead of datasets?
@@ -224,6 +222,9 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                                 extra_headers=DATASET_SEARCH_HEADERS
                             )) if table_data_type in data_type_queries else {}
                         }
+
+                    # TODO: We should only fetch items that match including sub-items (e.g. limited calls) by using
+                    #  all index combinations that match and combining them... something like that
 
                     dataset_objects_dict[table_dataset_id][table_data_type].extend((await peer_fetch(
                         client,
