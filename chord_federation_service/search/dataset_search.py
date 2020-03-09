@@ -135,7 +135,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         try:
             for q in data_type_queries.values():
-                # Try compiling each query to make sure it works
+                # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
                 convert_query_to_ast_and_preprocess(q)
 
             client = AsyncHTTPClient()
@@ -151,7 +151,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                            extra_headers=DATASET_SEARCH_HEADERS)
             )
 
-            datasets_dict = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
+            datasets_dict: Dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
             dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict.keys()}
 
             dataset_object_schema = {
@@ -164,7 +164,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             # Include metadata table explicitly
             # TODO: This should probably be auto-produced by the metadata service
 
-            tables_with_metadata = table_ownerships["results"] + [{
+            tables_with_metadata: List[Dict[str, str]] = table_ownerships["results"] + [{
                 "table_id": d,
                 "dataset": d,
                 "data_type": "phenopacket",  # TODO: Don't hard-code?
@@ -175,6 +175,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 table_dataset_id = t["dataset"]
                 table_data_type = t["data_type"]
 
+                # Check if we were able to fetch the dataset description for the dataset ID specified by the table
+                # ownership entry; if not, log an error and (for now) just skip the table ownership relationship.
                 if table_dataset_id not in datasets_dict:
                     # TODO: error
                     print(f"[{SERVICE_NAME} {datetime.now()}] Dataset {table_dataset_id} from table not found in "
@@ -184,7 +186,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                 if table_data_type not in dataset_objects_dict[table_dataset_id]:
                     dataset_objects_dict[table_dataset_id][table_data_type] = []
 
-                linked_field_sets = [
+                linked_field_sets: LinkedFieldSetList = [
                     lfs["fields"]
                     for lfs in datasets_dict[table_dataset_id].get("linked_field_sets", [])
                     if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
@@ -255,6 +257,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
             print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
+            # Aggregate datasets into results list if they satisfy the queries
             for dataset_id, data_type_results in dataset_objects_dict.items():  # TODO: Worker
                 get_dataset_results(
                     data_type_queries,
@@ -275,6 +278,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
             # TODO: Better / more compliant error message
+            # TODO: Move these up?
+            # TODO: Not guaranteed to be actually query-processing errors
             print(str(e))
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
