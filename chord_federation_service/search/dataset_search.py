@@ -341,7 +341,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 class PrivateDatasetSearchHandler(RequestHandler):
     include_internal_results = True
 
-    async def options(self):
+    async def options(self, _dataset_id: str):
         self.set_status(204)
         await self.finish()
 
