@@ -35,6 +35,9 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         raise_error=True
     )
 
+    if CHORD_DEBUG:
+        print(f"[{SERVICE_NAME}] [DEBUG] {method} response body: {r.body}", flush=True)
+
     return json.loads(r.body) if r.code != 204 else None
 
 
