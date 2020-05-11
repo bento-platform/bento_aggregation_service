@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/chord_federation_async.iml" filepath="$PROJECT_DIR$/.idea/chord_federation_async.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/chord_federation_service.iml" filepath="$PROJECT_DIR$/.idea/chord_federation_service.iml" />
     </modules>
   </component>
 </project>

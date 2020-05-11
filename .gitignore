@@ -1,5 +1,6 @@
 env
 .idea/workspace.xml
 .idea/dataSources*
+.idea/rSettings.xml
 *.db
 __pycache__
