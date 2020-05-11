@@ -4,7 +4,7 @@ import socket
 from tornado.httpclient import AsyncHTTPClient
 from tornado.netutil import Resolver
 from tornado.queues import Queue
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 from urllib.parse import urljoin
 
 from .constants import CHORD_DEBUG, SOCKET_INTERNAL, SOCKET_INTERNAL_DOMAIN, SERVICE_NAME, TIMEOUT
@@ -18,10 +18,17 @@ __all__ = [
 ]
 
 
-async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: Optional[bytes] = None,
+RequestBody = Optional[Union[bytes, str]]
+
+
+async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: RequestBody = None,
                      method: str = "POST", extra_headers: Optional[dict] = None):
     if CHORD_DEBUG:
         print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
+
+    if isinstance(request_body, str):
+        # Convert str to bytes with only accepted charset: UTF-8
+        request_body = request_body.encode("UTF-8")
 
     r = await client.fetch(
         urljoin(peer, path_fragment),
@@ -29,7 +36,7 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         method=method,
         body=request_body,
         headers={
-            **({} if request_body is None else {"Content-Type": "application/json"}),
+            **({} if request_body is None else {"Content-Type": "application/json; charset=UTF-8"}),
             **({} if extra_headers is None else extra_headers)
         },
         raise_error=True
