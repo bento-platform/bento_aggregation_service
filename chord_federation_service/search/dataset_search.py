@@ -143,9 +143,8 @@ async def run_search_on_dataset(
     dataset_join_query = join_query
 
     if dataset_join_query is None:
-        # Could re-return None; pass set of all data types to filter out combinations
-        dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets,
-                                                              set(data_type_queries.keys()))
+        # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
+        dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries))
 
     if dataset_join_query is not None:  # still isn't None...
         # TODO: Pre-filter data_type_results to avoid a billion index combinations - return specific set of
@@ -295,14 +294,14 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
                                         extra_headers=DATASET_SEARCH_HEADERS)
 
             datasets_dict: Dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
-            dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict.keys()}
+            dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict}
 
             dataset_object_schema = {
                 "type": "object",
                 "properties": {}
             }
 
-            dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict.keys()}
+            dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
 
             for dataset_id, dataset in datasets_dict.items():  # TODO: Worker
                 dataset_tables = (
