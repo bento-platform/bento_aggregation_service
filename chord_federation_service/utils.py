@@ -61,18 +61,14 @@ class ServiceSocketResolver(Resolver):
 
 
 def get_request_json(request_body: bytes) -> Optional[dict]:
-    request = None
-
     try:
         request = json.loads(request_body)
+        # TODO: Validate against a JSON schema or OpenAPI
+        return request if isinstance(request, dict) else None
     except json.JSONDecodeError:
         pass
 
-    # TODO: Validate against a JSON schema or OpenAPI
-    if not isinstance(request, dict):
-        request = None
-
-    return request
+    # Otherwise, return None implicitly
 
 
 def get_new_peer_queue(peers: Iterable) -> Queue:
