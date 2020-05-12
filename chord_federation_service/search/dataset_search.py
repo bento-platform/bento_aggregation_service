@@ -10,7 +10,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
 from tornado.web import RequestHandler
 
-from typing import Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable as TypingIterable, List, Optional, Sequence, Set, Tuple
 
 from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
@@ -235,6 +235,31 @@ def get_synthetic_metadata_table(dataset_id):
     }
 
 
+def get_query_parts(request_body: bytes) -> Optional[Optional[Tuple[Dict[str, Query]]], Optional[Query]]:
+    request = get_request_json(request_body)
+    if request is None:
+        return None, None
+
+    # Format: {"data_type": ["#eq", ...]}
+    data_type_queries: Optional[Dict[str, Query]] = request.get("data_type_queries")
+
+    # Format: normal query, using data types for join conditions
+    join_query: Optional[Query] = request.get("join_query")
+
+    return data_type_queries, join_query
+
+
+def test_queries(queries: Sequence[Query]) -> None:
+    """
+    Throws an error if a query in the iterable cannot be compiled.
+    :param queries: Iterable of queries to attempt compilation of.
+    :return: None
+    """
+    for q in queries:
+        # Try compiling each query to make sure it works.
+        convert_query_to_ast_and_preprocess(q)
+
+
 # noinspection PyAbstractClass
 class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
     """
@@ -248,24 +273,17 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
         await self.finish()
 
     async def post(self):
-        request = get_request_json(self.request.body)
-        if request is None or "data_type_queries" not in request:
+        data_type_queries, join_query = get_query_parts(self.request.body)
+        if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
             return
 
-        # Format: {"data_type": ["#eq", ...]}
-        data_type_queries: Dict[str, Query] = request["data_type_queries"]
-
-        # Format: normal query, using data types for join conditions
-        join_query = request.get("join_query", None)
-
         results = []
 
         try:
-            for q in data_type_queries.values():
-                # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
-                convert_query_to_ast_and_preprocess(q)
+            # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
+            test_queries(data_type_queries.values())
 
             client = AsyncHTTPClient()
 
@@ -346,22 +364,15 @@ class PrivateDatasetSearchHandler(RequestHandler):
         await self.finish()
 
     async def post(self, dataset_id: str):
-        request = get_request_json(self.request.body)
-        if request is None or "data_type_queries" not in request:
+        data_type_queries, join_query = get_query_parts(self.request.body)
+        if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
             return
 
-        # Format: {"data_type": ["#eq", ...]}
-        data_type_queries: Dict[str, Query] = request["data_type_queries"]
-
-        # Format: normal query, using data types for join conditions
-        join_query = request.get("join_query", None)
-
         try:
-            for q in data_type_queries.values():
-                # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
-                convert_query_to_ast_and_preprocess(q)
+            # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
+            test_queries(data_type_queries.values())
 
             client = AsyncHTTPClient()
 
