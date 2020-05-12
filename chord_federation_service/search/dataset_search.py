@@ -10,7 +10,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
 from tornado.web import RequestHandler
 
-from typing import Dict, Iterable as TypingIterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
 
 from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
@@ -234,7 +234,7 @@ def get_synthetic_metadata_table(dataset_id):
     }
 
 
-def get_query_parts(request_body: bytes) -> Tuple[Optional[Tuple[Dict[str, Query]]], Optional[Query]]:
+def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query]]:
     request = get_request_json(request_body)
     if request is None:
         return None, None
@@ -248,7 +248,7 @@ def get_query_parts(request_body: bytes) -> Tuple[Optional[Tuple[Dict[str, Query
     return data_type_queries, join_query
 
 
-def test_queries(queries: Sequence[Query]) -> None:
+def test_queries(queries: TypingIterable[Query]) -> None:
     """
     Throws an error if a query in the iterable cannot be compiled.
     :param queries: Iterable of queries to attempt compilation of.
