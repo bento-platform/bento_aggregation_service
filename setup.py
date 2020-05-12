@@ -1,19 +1,24 @@
 #!/usr/bin/env python
 
+import configparser
+import os
 import setuptools
 
 with open("README.md", "r") as rf:
     long_description = rf.read()
 
+config = configparser.ConfigParser()
+config.read(os.path.join(os.path.dirname(os.path.realpath(__file__)), "chord_federation_service", "package.cfg"))
+
 setuptools.setup(
-    name="chord_federation_service",
-    version="0.3.0",
+    name=config["package"]["name"],
+    version=config["package"]["version"],
 
     python_requires=">=3.6",
-    install_requires=["chord_lib==0.6.0", "tornado>=6.0,<6.1"],
+    install_requires=["chord_lib==0.8.0", "tornado>=6.0,<6.1"],
 
-    author="David Lougheed",
-    author_email="david.lougheed@mail.mcgill.ca",
+    author=config["package"]["authors"],
+    author_email=config["package"]["author_emails"],
 
     description="Search federation service for the CHORD project.",
     long_description=long_description,

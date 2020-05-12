@@ -1,1 +1,2 @@
+include chord_federation_service/package.cfg
 include chord_federation_service/schema.sql

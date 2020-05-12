@@ -40,9 +40,16 @@ def update_db():
         init_db()
         return
 
-    insert_or_ignore_fixed_nodes(peer_db.cursor())
+    insert_or_ignore_fixed_nodes(c)
 
     # TODO
+
+
+def clear_db_and_insert_fixed_nodes():
+    # TODO: Maybe this should be called at startup? Unclear
+    c = peer_db.cursor()
+    c.execute("DELETE FROM peers")
+    insert_or_ignore_fixed_nodes(c)
 
 
 if not db_exists:

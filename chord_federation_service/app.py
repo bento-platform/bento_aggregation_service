@@ -9,7 +9,8 @@ from tornado.web import RequestHandler, url
 
 from .constants import SERVICE_ID, SERVICE_TYPE, SERVICE_NAME, CHORD_URLS_SET, BASE_PATH, SERVICE_SOCKET
 from .db import peer_db
-from .peers import PeerManager, PeerHandler
+from .peers.handlers import PeerHandler, PeerRefreshHandler
+from .peers.manager import PeerManager
 from .search.dataset_search import DatasetSearchHandler, PrivateDatasetSearchHandler
 from .search.federated_dataset_search import FederatedDatasetSearchHandler
 from .search.search import SearchHandler
@@ -43,16 +44,15 @@ class Application(tornado.web.Application):
         self.db = db
         self.peer_manager = PeerManager(self.db)
 
-        handlers = [
+        super(Application, self).__init__([
             url(f"{base_path}/service-info", ServiceInfoHandler),
             url(f"{base_path}/peers", PeerHandler),
+            url(f"{base_path}/private/peers/refresh", PeerRefreshHandler),
             url(f"{base_path}/dataset-search", DatasetSearchHandler),
             url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
             url(f"{base_path}/federated-dataset-search", FederatedDatasetSearchHandler),
             url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
-        ]
-
-        super(Application, self).__init__(handlers)
+        ])
 
 
 application = Application(peer_db, BASE_PATH)
