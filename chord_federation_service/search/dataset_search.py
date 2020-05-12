@@ -234,7 +234,7 @@ def get_synthetic_metadata_table(dataset_id):
     }
 
 
-def get_query_parts(request_body: bytes) -> Optional[Optional[Tuple[Dict[str, Query]]], Optional[Query]]:
+def get_query_parts(request_body: bytes) -> Tuple[Optional[Tuple[Dict[str, Query]]], Optional[Query]]:
     request = get_request_json(request_body)
     if request is None:
         return None, None
