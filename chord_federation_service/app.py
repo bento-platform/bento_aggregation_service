@@ -3,6 +3,7 @@ import tornado.gen
 import tornado.ioloop
 import tornado.web
 
+from datetime import datetime
 from tornado.httpserver import HTTPServer
 from tornado.netutil import bind_unix_socket
 from tornado.web import RequestHandler, url
@@ -44,7 +45,7 @@ class ServiceInfoHandler(RequestHandler):
 
 def post_start_hook(peer_manager: PeerManager):
     peer_manager.get_peers()
-    print(f"[{SERVICE_NAME}] Post-start hook finished", flush=True)
+    print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook finished", flush=True)
 
 
 # noinspection PyAbstractClass
@@ -54,7 +55,7 @@ class PostStartHookHandler(RequestHandler):
         Handles post-start hook which pings the node registry with the current node's information.
         :return:
         """
-        print(f"[{SERVICE_NAME}] Post-start hook invoked via URL request", flush=True)
+        print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook invoked via URL request", flush=True)
         post_start_hook(self.application.peer_manager)
         self.clear()
         self.set_status(204)
@@ -85,7 +86,7 @@ application = Application(peer_db, BASE_PATH)
 
 def run():
     if not CHORD_URLS_SET:
-        print(f"[{SERVICE_NAME}] No CHORD URLs given, terminating...")
+        print(f"[{SERVICE_NAME} {datetime.utcnow()}] No CHORD URLs given, terminating...")
         exit(1)
 
     server = HTTPServer(application)
