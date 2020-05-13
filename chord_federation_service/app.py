@@ -44,6 +44,7 @@ class ServiceInfoHandler(RequestHandler):
 
 def post_start_hook(peer_manager: PeerManager):
     peer_manager.get_peers()
+    print(f"[{SERVICE_NAME}] Post-start hook finished", flush=True)
 
 
 # noinspection PyAbstractClass
