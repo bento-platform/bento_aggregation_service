@@ -7,7 +7,15 @@ from tornado.httpserver import HTTPServer
 from tornado.netutil import bind_unix_socket
 from tornado.web import RequestHandler, url
 
-from .constants import SERVICE_ID, SERVICE_TYPE, SERVICE_NAME, CHORD_URLS_SET, BASE_PATH, SERVICE_SOCKET
+from .constants import (
+    SERVICE_ID,
+    SERVICE_TYPE,
+    SERVICE_NAME,
+    INITIALIZE_IMMEDIATELY,
+    CHORD_URLS_SET,
+    BASE_PATH,
+    SERVICE_SOCKET,
+)
 from .db import peer_db
 from .peers.handlers import PeerHandler, PeerRefreshHandler
 from .peers.manager import PeerManager
@@ -20,11 +28,6 @@ from .search.search import SearchHandler
 class ServiceInfoHandler(RequestHandler):
     async def get(self):
         # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
-
-        if self.get_argument("update_peers", "true") == "true":
-            # Hack to force lists to update when the CHORD dashboard is loaded
-            await self.application.peer_manager.get_peers()
-
         self.write({
             "id": SERVICE_ID,
             "name": SERVICE_NAME,  # TODO: Should be globally unique?
@@ -39,13 +42,34 @@ class ServiceInfoHandler(RequestHandler):
         })
 
 
+def post_start_hook(peer_manager: PeerManager):
+    peer_manager.get_peers()
+
+
+# noinspection PyAbstractClass
+class PostStartHookHandler(RequestHandler):
+    async def get(self):
+        """
+        Handles post-start hook which pings the node registry with the current node's information.
+        :return:
+        """
+        print(f"[{SERVICE_NAME}] Post-start hook invoked via URL request", flush=True)
+        post_start_hook(self.application.peer_manager)
+        self.clear()
+        self.set_status(204)
+
+
 class Application(tornado.web.Application):
     def __init__(self, db, base_path: str):
         self.db = db
         self.peer_manager = PeerManager(self.db)
 
+        if INITIALIZE_IMMEDIATELY:
+            post_start_hook(self.peer_manager)
+
         super(Application, self).__init__([
             url(f"{base_path}/service-info", ServiceInfoHandler),
+            url(f"{base_path}/private/post-start-hook", PostStartHookHandler),
             url(f"{base_path}/peers", PeerHandler),
             url(f"{base_path}/private/peers/refresh", PeerRefreshHandler),
             url(f"{base_path}/dataset-search", DatasetSearchHandler),

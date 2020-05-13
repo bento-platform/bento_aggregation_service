@@ -29,6 +29,8 @@ __all__ = [
     "SOCKET_INTERNAL_DOMAIN",
     "SOCKET_INTERNAL_URL",
 
+    "INITIALIZE_IMMEDIATELY",
+
     "CHORD_URLS_SET",
 
     "TIMEOUT",
@@ -57,6 +59,8 @@ SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 SOCKET_INTERNAL = os.environ.get("SOCKET_INTERNAL", "/var/run/nginx.sock")  # internal reverse proxy socket
 SOCKET_INTERNAL_DOMAIN = "nginx_internal"
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
+
+INITIALIZE_IMMEDIATELY = os.environ.get("INITIALIZE_IMMEDIATELY", "true").strip().lower() == "true",
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
