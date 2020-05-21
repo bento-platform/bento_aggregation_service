@@ -66,9 +66,6 @@ class Application(tornado.web.Application):
         self.db = db
         self.peer_manager = PeerManager(self.db)
 
-        if INITIALIZE_IMMEDIATELY:
-            post_start_hook(self.peer_manager)
-
         super(Application, self).__init__([
             url(f"{base_path}/service-info", ServiceInfoHandler),
             url(f"{base_path}/private/post-start-hook", PostStartHookHandler),
@@ -79,6 +76,9 @@ class Application(tornado.web.Application):
             url(f"{base_path}/federated-dataset-search", FederatedDatasetSearchHandler),
             url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
         ])
+
+        if INITIALIZE_IMMEDIATELY:
+            post_start_hook(self.peer_manager)
 
 
 application = Application(peer_db, BASE_PATH)
