@@ -43,8 +43,8 @@ class ServiceInfoHandler(RequestHandler):
         })
 
 
-def post_start_hook(peer_manager: PeerManager):
-    peer_manager.get_peers()
+async def post_start_hook(peer_manager: PeerManager):
+    await peer_manager.get_peers()
     print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook finished", flush=True)
 
 
@@ -56,7 +56,7 @@ class PostStartHookHandler(RequestHandler):
         :return:
         """
         print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook invoked via URL request", flush=True)
-        post_start_hook(self.application.peer_manager)
+        await post_start_hook(self.application.peer_manager)
         self.clear()
         self.set_status(204)
 
