@@ -123,15 +123,10 @@ def process_dataset_results(
 
 async def run_search_on_dataset(
     client: AsyncHTTPClient,
-
     dataset_object_schema: dict,
-
     dataset: dict,
-    dataset_tables: TypingIterable[Dict[str, str]],
-
     join_query: Query,
     data_type_queries: Dict[str, Query],
-
     include_internal_results: bool,
 ) -> Tuple[Dict[str, list], Query]:
     linked_field_sets: LinkedFieldSetList = [
@@ -161,8 +156,19 @@ async def run_search_on_dataset(
 
     dataset_results = {}
 
-    for t in dataset_tables:
-        table_data_type = t["data_type"]
+    for t in dataset["table_ownership"]:
+        # TODO: Don't fetch schema
+        table_record = await peer_fetch(
+            client,
+            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+            f"api/{t['service_artifact']}/tables/{t['table_id']}",
+            method="GET",
+            extra_headers=DATASET_SEARCH_HEADERS
+        )
+
+        table_id = table_record["id"]
+        table_data_type = table_record["data_type"]
+        table_service_artifact = t["service_artifact"]
 
         if table_data_type not in dataset_results:
             dataset_results[table_data_type] = []
@@ -172,13 +178,7 @@ async def run_search_on_dataset(
                 # Fetch schema for data type if needed
                 dataset_object_schema["properties"][table_data_type] = {
                     "type": "array",
-                    "items": (await peer_fetch(
-                        client,
-                        SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                        f"api/{t['service_artifact']}/data-types/{table_data_type}/schema",
-                        method="GET",
-                        extra_headers=DATASET_SEARCH_HEADERS
-                    )) if table_data_type in data_type_queries else {}
+                    "items": table_record["schema"] if table_data_type in data_type_queries else {}
                 }
 
             # TODO: We should only fetch items that match including sub-items (e.g. limited calls) by using
@@ -187,7 +187,7 @@ async def run_search_on_dataset(
             dataset_results[table_data_type].extend((await peer_fetch(
                 client,
                 SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                f"api/{t['service_artifact']}/private/tables/{t['table_id']}/search",
+                f"api/{table_service_artifact}/private/tables/{table_id}/search",
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
                 extra_headers=DATASET_SEARCH_HEADERS
@@ -198,8 +198,8 @@ async def run_search_on_dataset(
             # using the public discovery endpoint.
 
             fetch_url = (
-                f"api/{t['service_artifact']}/{'private/' if include_internal_results else ''}"
-                f"tables/{t['table_id']}/search"
+                f"api/{table_service_artifact}/{'private/' if include_internal_results else ''}"
+                f"tables/{table_id}/search"
             )
 
             r = await peer_fetch(
@@ -224,14 +224,6 @@ async def run_search_on_dataset(
     # Return dataset-level results to calculate final result from
     # Return dataset join query for later use (when generating results)
     return dataset_results, dataset_join_query
-
-
-def get_synthetic_metadata_table(dataset_id):
-    return {
-        "table_id": dataset_id,
-        "data_type": "phenopacket",
-        "service_artifact": "metadata",
-    }
 
 
 def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query]]:
@@ -304,18 +296,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
 
             for dataset_id, dataset in datasets_dict.items():  # TODO: Worker
-                dataset_tables = (
-                    *dataset["table_ownership"],
-                    # Include metadata table explicitly
-                    # TODO: This should probably be auto-produced by the metadata service
-                    get_synthetic_metadata_table(dataset_id)
-                )
-
                 dataset_results, dataset_join_query = await run_search_on_dataset(
                     client,
                     dataset_object_schema,
                     datasets_dict[dataset_id],
-                    dataset_tables,
                     join_query,
                     data_type_queries,
                     self.include_internal_results,
@@ -385,13 +369,6 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 extra_headers=DATASET_SEARCH_HEADERS
             )
 
-            dataset_tables = (
-                *dataset["table_ownership"],
-                # Include metadata table explicitly
-                # TODO: This should probably be auto-produced by the metadata service
-                get_synthetic_metadata_table(dataset_id)
-            )
-
             dataset_object_schema = {
                 "type": "object",
                 "properties": {}
@@ -401,7 +378,6 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 client,
                 dataset_object_schema,
                 dataset,
-                dataset_tables,
                 join_query,
                 data_type_queries,
                 self.include_internal_results
