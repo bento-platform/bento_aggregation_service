@@ -109,6 +109,12 @@ class Kept:
     def __init__(self, data):
         self.data = data.data if isinstance(data, Kept) else data
 
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def __iter__(self):
+        yield from self.data
+
 
 def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if not ic_path:
