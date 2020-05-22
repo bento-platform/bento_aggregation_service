@@ -136,7 +136,10 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if isinstance(data_structure, list):
         return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
 
-    return _filter_kept(data_structure[ic_path[0]], ic_path[1:])
+    return {
+        **data_structure,
+        ic_path[0]: _filter_kept(data_structure[ic_path[0]], ic_path[1:]),
+    }
 
 
 def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
@@ -154,7 +157,10 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if isinstance(data_structure, list):
         return [_strip_kept(i.data if isinstance(i, Kept) else i, ic_path[1:]) for i in data_structure]
 
-    return _strip_kept(data_structure[ic_path[0]], ic_path[1:])
+    return {
+        **data_structure,
+        ic_path[0]: _strip_kept(data_structure[ic_path[0]], ic_path[1:]),
+    }
 
 
 def _filter_results_by_index_combinations(
