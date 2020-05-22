@@ -152,8 +152,13 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     :return: The data structure, stripped of Kept wrapping.
     """
 
+    print(ic_path, str(data_structure)[:200], flush=True)
+
+    if isinstance(data_structure, Kept):
+        data_structure = data_structure.data
+
     if not ic_path:
-        return data_structure.data if isinstance(data_structure, Kept) else data_structure
+        return data_structure
 
     if isinstance(data_structure, list):
         return [_strip_kept(i, ic_path[1:]) for i in data_structure]
