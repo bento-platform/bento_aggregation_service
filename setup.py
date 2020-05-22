@@ -15,7 +15,7 @@ setuptools.setup(
     version=config["package"]["version"],
 
     python_requires=">=3.6",
-    install_requires=["chord_lib==0.8.0", "tornado>=6.0,<6.1"],
+    install_requires=["chord_lib==0.9.0", "tornado>=6.0,<6.1"],
 
     author=config["package"]["authors"],
     author_email=config["package"]["author_emails"],
