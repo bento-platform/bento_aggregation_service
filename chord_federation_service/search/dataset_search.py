@@ -154,6 +154,54 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     return _strip_kept(data_structure[ic_path[0]], ic_path[1:])
 
 
+def _filter_results_by_index_combinations(
+    dataset_results: Dict[str, list],
+    index_combinations: Tuple[dict],
+    ic_paths_to_filter: List[str],
+) -> Dict[str, list]:
+    # TODO: This stuff is slow
+
+    ic_paths_to_filter_set = set(ic_paths_to_filter)
+
+    for index_combination in index_combinations:
+        resolved_versions = {}
+
+        for path, index in sorted(index_combination.items(), key=lambda pair: len(pair[0])):
+            if path not in ic_paths_to_filter_set:
+                continue
+
+            path_array_parts = path.split(".[item]")
+
+            resolved_path = ""
+            current_path = ""
+            for p in path_array_parts[:-1]:
+                current_path += p
+                resolved_path += resolved_versions[current_path]
+
+            resolved_path += f"{path_array_parts[-1]}.[{index}]"
+            resolved_versions[path] = resolved_path
+
+        for resolved_path in resolved_versions.values():
+            path_parts = resolved_path.split(".")[1:]
+            ds: Any = dataset_results
+            for pp in path_parts:
+                arr = pp[0] == "["
+                idx = int(pp[1:-1]) if arr else pp
+                if arr:
+                    ds[idx] = Kept(ds[idx]) if not isinstance(ds[idx], Kept) else ds[idx]
+                ds = ds[idx]
+
+    sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
+
+    for ic_path in sorted_icps:
+        dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
+
+    for ic_path in sorted_icps:
+        dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
+
+    return dataset_results
+
+
 def process_dataset_results(
     data_type_queries: Dict[str, Query],
     dataset_join_query: Query,
@@ -165,7 +213,6 @@ def process_dataset_results(
 ):
     # TODO: Check dataset, table-level authorizations
 
-    # dataset_id: dataset identifier
     # dataset_results: dict of data types and corresponding table matches
 
     # TODO: Avoid re-compiling a fixed join query
@@ -193,50 +240,9 @@ def process_dataset_results(
     # TODO: Optimize by not fetching if the query isn't going anywhere (i.e. no linked field sets, 2+ data types)
     if ((join_query_ast is None and any(len(dtr) > 0 for dtr in dataset_results.values())
          and len(data_type_queries) == 1) or (join_query_ast is not None and ic)):
-
-        ic_paths_to_filter_set = set(ic_paths_to_filter)
-
-        # TODO: This stuff is slow
-
-        for index_combination in ic:
-            resolved_versions = {}
-
-            for path, index in sorted(index_combination.items(), key=lambda pair: len(pair[0])):
-                if path not in ic_paths_to_filter_set:
-                    continue
-
-                path_array_parts = path.split(".[item]")
-
-                resolved_path = ""
-                current_path = ""
-                for p in path_array_parts[:-1]:
-                    current_path += p
-                    resolved_path += resolved_versions[current_path]
-
-                resolved_path += f"{path_array_parts[-1]}.[{index}]"
-                resolved_versions[path] = resolved_path
-
-            for resolved_path in resolved_versions.values():
-                path_parts = resolved_path.split(".")[1:]
-                ds: Any = dataset_results
-                for pp in path_parts:
-                    arr = pp[0] == "["
-                    idx = int(pp[1:-1]) if arr else pp
-                    if arr:
-                        ds[idx] = Kept(ds[idx]) if not isinstance(ds[idx], Kept) else ds[idx]
-                    ds = ds[idx]
-
-        sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
-
-        for ic_path in sorted_icps:
-            dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
-
-        for ic_path in sorted_icps:
-            dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
-
         yield {
             **dataset,
-            **({"results": dataset_results,  # TODO: Filter this!
+            **({"results": _filter_results_by_index_combinations(dataset_results, ic, ic_paths_to_filter),
                 "index_combinations": ic} if include_internal_data else {})
         }  # TODO: Make sure all information here is public-level if include_internal_data is False.
 
