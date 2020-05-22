@@ -118,6 +118,9 @@ class Kept:
     def __str__(self):
         return f"Kept <{str(self.data)}>"
 
+    def __repr__(self):
+        return str(self)
+
 
 def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     """
@@ -150,10 +153,10 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     """
 
     if not ic_path:
-        return data_structure
+        return data_structure.data if isinstance(data_structure, Kept) else data_structure
 
     if isinstance(data_structure, list):
-        return [_strip_kept(i.data if isinstance(i, Kept) else i, ic_path[1:]) for i in data_structure]
+        return [_strip_kept(i, ic_path[1:]) for i in data_structure]
 
     return {
         **data_structure,
@@ -204,9 +207,9 @@ def _filter_results_by_index_combinations(
         dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
 
     for ic_path in sorted_icps:
-        print("Before strip: ", ic_path, str(dataset_results)[:200])
+        print("Before strip: ", ic_path, str(dataset_results)[:200], flush=True)
         dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
-        print("After strip: ", ic_path, str(dataset_results)[:200])
+        print("After strip: ", ic_path, str(dataset_results)[:200], flush=True)
 
     return dataset_results
 
