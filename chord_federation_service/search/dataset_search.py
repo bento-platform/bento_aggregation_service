@@ -143,22 +143,35 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     }
 
 
+def _base_strip_kept(data_structure: Any) -> Any:
+    """
+    Strips the Kept class off of a wrapped data structure if one exists.
+    :param data_structure: The possibly-wrapped data structure.
+    :return: The unwrapped data structure.
+    """
+    return data_structure.data if isinstance(data_structure, Kept) else data_structure
+
+
 def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     """
     Goes through a data structure and strips any data wrapped in a Kept class as they occur along the index combination
     path we're following. Recurses on every element of arrays.
     :param data_structure: The data structure to start following the index combination path at.
-    :param ic_path: The index combination path elements to follow; e.g. biosamples.[item].id split by "." into a list.
+    :param ic_path: The index combination path elements to follow; e.g. _root.biosamples.[item].id split by "."
     :return: The data structure, stripped of Kept wrapping.
     """
 
     print(ic_path, str(data_structure)[:200], flush=True)
 
-    if isinstance(data_structure, Kept):
-        data_structure = data_structure.data
+    data_structure = _base_strip_kept(data_structure)
 
-    if not ic_path:
+    if not ic_path:  # At the base level, so strip off any if it's an array; otherwise do nothing.
+        if isinstance(data_structure, list):
+            return [_base_strip_kept(i) for i in data_structure]
+
         return data_structure
+
+    # Otherwise, we have more to resolve; call the recursive Kept-stripping utility instead.
 
     if isinstance(data_structure, list):
         return [_strip_kept(i, ic_path[1:]) for i in data_structure]
