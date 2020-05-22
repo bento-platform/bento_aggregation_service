@@ -117,6 +117,14 @@ class Kept:
 
 
 def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
+    """
+    Goes through a data structure and only keeps array items that are tagged with the Kept class as they occur along the
+    index combination path we're following. Recurses on every element of arrays.
+    :param data_structure: The data structure to start following the index combination path at.
+    :param ic_path: The index combination path elements to follow; e.g. biosamples.[item].id split by "." into a list.
+    :return: The filtered data structure.
+    """
+
     if not ic_path:
         return data_structure
 
@@ -127,6 +135,14 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
 
 
 def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
+    """
+    Goes through a data structure and strips any data wrapped in a Kept class as they occur along the index combination
+    path we're following. Recurses on every element of arrays.
+    :param data_structure: The data structure to start following the index combination path at.
+    :param ic_path: The index combination path elements to follow; e.g. biosamples.[item].id split by "." into a list.
+    :return: The data structure, stripped of Kept wrapping.
+    """
+
     if not ic_path:
         return data_structure
 
@@ -205,7 +221,7 @@ def process_dataset_results(
                     arr = pp[0] == "["
                     idx = int(pp[1:-1]) if arr else pp
                     if arr:
-                        ds[idx] = Kept(ds[idx])
+                        ds[idx] = Kept(ds[idx]) if not isinstance(ds[idx], Kept) else ds[idx]
                     ds = ds[idx]
 
         sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
