@@ -435,13 +435,13 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
-        except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-            # TODO: Better / more compliant error message
-            # TODO: Move these up?
-            # TODO: Not guaranteed to be actually query-processing errors
-            print(str(e))
-            self.set_status(400)
-            self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
+        # except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
+        #     # TODO: Better / more compliant error message
+        #     # TODO: Move these up?
+        #     # TODO: Not guaranteed to be actually query-processing errors
+        #     print(str(e))
+        #     self.set_status(400)
+        #     self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
 
 
 # noinspection PyAbstractClass
