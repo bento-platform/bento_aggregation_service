@@ -115,6 +115,9 @@ class Kept:
     def __iter__(self):
         yield from self.data
 
+    def __str__(self):
+        return f"Kept <{str(self.data)}>"
+
 
 def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     """
@@ -128,7 +131,7 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if not ic_path:
         return data_structure
 
-    print(type(data_structure), ic_path, str(data_structure)[:80])
+    print(type(data_structure), ic_path, str(data_structure)[:80], flush=True)
 
     if isinstance(data_structure, list):
         return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
