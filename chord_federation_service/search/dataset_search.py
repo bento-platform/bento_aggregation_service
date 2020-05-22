@@ -131,7 +131,10 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     :return: The filtered data structure.
     """
 
-    if not ic_path:
+    if not ic_path:  # At the base level, so filter lists without recursing.
+        if isinstance(data_structure, list):
+            return [i for i in data_structure if isinstance(i, Kept)]
+
         return data_structure
 
     if isinstance(data_structure, list):
