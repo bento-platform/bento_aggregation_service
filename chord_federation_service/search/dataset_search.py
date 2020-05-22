@@ -131,8 +131,6 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if not ic_path:
         return data_structure
 
-    print(type(data_structure), ic_path, str(data_structure)[:80], flush=True)
-
     if isinstance(data_structure, list):
         return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
 
@@ -206,7 +204,9 @@ def _filter_results_by_index_combinations(
         dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
 
     for ic_path in sorted_icps:
+        print("Before strip: ", ic_path, str(dataset_results)[:200])
         dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
+        print("After strip: ", ic_path, str(dataset_results)[:200])
 
     return dataset_results
 
@@ -468,13 +468,13 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
-        # except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-        #     # TODO: Better / more compliant error message
-        #     # TODO: Move these up?
-        #     # TODO: Not guaranteed to be actually query-processing errors
-        #     print(str(e))
-        #     self.set_status(400)
-        #     self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
+        except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
+            # TODO: Better / more compliant error message
+            # TODO: Move these up?
+            # TODO: Not guaranteed to be actually query-processing errors
+            print(str(e))
+            self.set_status(400)
+            self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
 
 
 # noinspection PyAbstractClass
