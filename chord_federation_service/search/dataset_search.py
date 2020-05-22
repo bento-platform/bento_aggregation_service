@@ -128,6 +128,8 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     if not ic_path:
         return data_structure
 
+    print(type(data_structure), ic_path, str(data_structure)[:80])
+
     if isinstance(data_structure, list):
         return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
 
