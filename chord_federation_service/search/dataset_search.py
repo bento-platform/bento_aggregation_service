@@ -10,7 +10,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
 from tornado.web import RequestHandler
 
-from typing import Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
 
 from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
@@ -76,6 +76,60 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
+def _get_array_resolve_paths(query: Query) -> List[str]:
+    """
+    Collect string representations array resolve paths without the trailing [item] resolution from a query. This can
+    facilitate determining which index combinations will appear; and can be used as a step in filtering results by
+    index combination.
+    :param query: Query to collect array resolves from
+    :return: List of index combination-compatible array resolve paths.
+    """
+
+    if isinstance(query, list) and len(query) > 1:
+        r = []
+
+        if query[0] == "#resolve":  # Resolve expression; items make up a resolve path
+            r = []
+            path = "_root"
+            for ri in query[1:]:
+                if ri == "[item]":
+                    r.append(path)
+                path = f"{path}.{ri}"
+
+        else:  # Expression where items are other expressions/literals
+            for e in query[1:]:
+                r.extend(_get_array_resolve_paths(e))
+
+        return r
+
+    return []
+
+
+class Kept:
+    def __init__(self, data):
+        self.data = data.data if isinstance(data, Kept) else data
+
+
+def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
+    if not ic_path:
+        return data_structure
+
+    if isinstance(data_structure, list):
+        return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
+
+    return _filter_kept(data_structure[ic_path[0]], ic_path[1:])
+
+
+def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
+    if not ic_path:
+        return data_structure
+
+    if isinstance(data_structure, list):
+        return [_strip_kept(i.data if isinstance(i, Kept) else i, ic_path[1:]) for i in data_structure]
+
+    return _strip_kept(data_structure[ic_path[0]], ic_path[1:])
+
+
 def process_dataset_results(
     data_type_queries: Dict[str, Query],
     dataset_join_query: Query,
@@ -83,6 +137,7 @@ def process_dataset_results(
     dataset: dict,
     dataset_object_schema: dict,
     include_internal_data: bool,
+    ic_paths_to_filter: Optional[List[str]] = None,
 ):
     # TODO: Check dataset, table-level authorizations
 
@@ -114,11 +169,60 @@ def process_dataset_results(
     # TODO: Optimize by not fetching if the query isn't going anywhere (i.e. no linked field sets, 2+ data types)
     if ((join_query_ast is None and any(len(dtr) > 0 for dtr in dataset_results.values())
          and len(data_type_queries) == 1) or (join_query_ast is not None and ic)):
+
+        ic_paths_to_filter_set = set(ic_paths_to_filter)
+
+        # TODO: This stuff is slow
+
+        for index_combination in ic:
+            resolved_versions = {}
+
+            for path, index in sorted(index_combination.items(), key=lambda pair: len(pair[0])):
+                if path not in ic_paths_to_filter_set:
+                    continue
+
+                path_array_parts = path.split(".[item]")
+
+                resolved_path = ""
+                current_path = ""
+                for p in path_array_parts[:-1]:
+                    current_path += p
+                    resolved_path += resolved_versions[current_path]
+
+                resolved_path += f"{path_array_parts[-1]}.[{index}]"
+                resolved_versions[path] = resolved_path
+
+            for resolved_path in resolved_versions.values():
+                path_parts = resolved_path.split(".")[1:]
+                ds: Any = dataset_results
+                for pp in path_parts:
+                    arr = pp[0] == "["
+                    idx = int(pp[1:-1]) if arr else pp
+                    if arr:
+                        ds[idx] = Kept(ds[idx])
+                    ds = ds[idx]
+
+        sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
+
+        for ic_path in sorted_icps:
+            dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
+
+        for ic_path in sorted_icps:
+            dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
+
         yield {
             **dataset,
             **({"results": dataset_results,  # TODO: Filter this!
                 "index_combinations": ic} if include_internal_data else {})
         }  # TODO: Make sure all information here is public-level if include_internal_data is False.
+
+
+def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
+    return [
+        lfs["fields"]
+        for lfs in dataset.get("linked_field_sets", [])
+        if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
+    ]
 
 
 async def run_search_on_dataset(
@@ -128,18 +232,15 @@ async def run_search_on_dataset(
     join_query: Query,
     data_type_queries: Dict[str, Query],
     include_internal_results: bool,
-) -> Tuple[Dict[str, list], Query]:
-    linked_field_sets: LinkedFieldSetList = [
-        lfs["fields"]
-        for lfs in dataset.get("linked_field_sets", [])
-        if len(lfs["fields"]) > 1  # Only include useful linked field sets, i.e. 2+ fields
-    ]
-
+) -> Tuple[Dict[str, list], Query, List[str]]:
+    linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     dataset_join_query = join_query
 
     if dataset_join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
         dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries))
+
+    ic_paths_to_filter = _get_array_resolve_paths(dataset_join_query) if include_internal_results else []
 
     if dataset_join_query is not None:  # still isn't None...
         # TODO: Pre-filter data_type_results to avoid a billion index combinations - return specific set of
@@ -194,18 +295,16 @@ async def run_search_on_dataset(
             ))["results"] if table_data_type in data_type_queries else [])
 
         elif table_data_type in data_type_queries:
-            # Don't need to fetch results for joining; just check individual tables (which is much faster)
-            # using the public discovery endpoint.
-
-            fetch_url = (
-                f"api/{table_service_artifact}/{'private/' if include_internal_results else ''}"
-                f"tables/{table_id}/search"
-            )
+            # Don't need to fetch results for joining if the join query is None; just check
+            # individual tables (which is much faster) using the public discovery endpoint.
 
             r = await peer_fetch(
                 client,
                 SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-                fetch_url,
+                path_fragment=(
+                    f"api/{table_service_artifact}/{'private/' if include_internal_results else ''}"
+                    f"tables/{table_id}/search"
+                ),
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
                 extra_headers=DATASET_SEARCH_HEADERS
@@ -223,7 +322,8 @@ async def run_search_on_dataset(
 
     # Return dataset-level results to calculate final result from
     # Return dataset join query for later use (when generating results)
-    return dataset_results, dataset_join_query
+    # Return index combination paths to filter by (for returning a proper result-set)
+    return dataset_results, dataset_join_query, ic_paths_to_filter
 
 
 def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query]]:
@@ -296,7 +396,7 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
 
             for dataset_id, dataset in datasets_dict.items():  # TODO: Worker
-                dataset_results, dataset_join_query = await run_search_on_dataset(
+                dataset_results, dataset_join_query, _ = await run_search_on_dataset(
                     client,
                     dataset_object_schema,
                     datasets_dict[dataset_id],
@@ -374,7 +474,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 "properties": {}
             }
 
-            dataset_results, dataset_join_query = await run_search_on_dataset(
+            dataset_results, dataset_join_query, ic_paths_to_filter = await run_search_on_dataset(
                 client,
                 dataset_object_schema,
                 dataset,
@@ -389,7 +489,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 dataset_results,
                 dataset,
                 dataset_object_schema,
-                include_internal_data=True
+                include_internal_data=True,
+                ic_paths_to_filter=ic_paths_to_filter,
             ), None))
 
             self.set_header("Content-Type", "application/json")
