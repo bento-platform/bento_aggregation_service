@@ -106,7 +106,7 @@ def _get_array_resolve_paths(query: Query) -> List[str]:
 
 
 class Kept:
-    def __init__(self, data):
+    def __init__(self, data: Any):
         self.data = data.data if isinstance(data, Kept) else data
 
     def __getitem__(self, item):
@@ -122,6 +122,10 @@ class Kept:
         return str(self)
 
 
+def _is_list(x: Any):
+    return isinstance(x, list)
+
+
 def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     """
     Goes through a data structure and only keeps array items that are tagged with the Kept class as they occur along the
@@ -131,19 +135,26 @@ def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
     :return: The filtered data structure.
     """
 
+    is_kept = isinstance(data_structure, Kept)
+
     if not ic_path:  # At the base level, so filter lists without recursing.
-        if isinstance(data_structure, list):
+        if _is_list(data_structure) or (is_kept and _is_list(data_structure.data)):
             return [i for i in data_structure if isinstance(i, Kept)]
 
         return data_structure
 
-    if isinstance(data_structure, list):
+    if _is_list(data_structure) or (is_kept and _is_list(data_structure.data)):
         return [Kept(_filter_kept(i.data, ic_path[1:])) for i in data_structure if isinstance(i, Kept)]
 
-    return {
+    ds = {
         **data_structure,
         ic_path[0]: _filter_kept(data_structure[ic_path[0]], ic_path[1:]),
     }
+
+    if is_kept:
+        return Kept(ds)
+
+    return ds
 
 
 def _base_strip_kept(data_structure: Any) -> Any:
@@ -169,14 +180,14 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     data_structure = _base_strip_kept(data_structure)
 
     if not ic_path:  # At the base level, so strip off any if it's an array; otherwise do nothing.
-        if isinstance(data_structure, list):
+        if _is_list(data_structure):
             return [_base_strip_kept(i) for i in data_structure]
 
         return data_structure
 
     # Otherwise, we have more to resolve; call the recursive Kept-stripping utility instead.
 
-    if isinstance(data_structure, list):
+    if _is_list(data_structure):
         return [_strip_kept(i, ic_path[1:]) for i in data_structure]
 
     return {
@@ -225,7 +236,9 @@ def _filter_results_by_index_combinations(
     sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
 
     for ic_path in sorted_icps:
+        print("Before filter: ", ic_path, str(dataset_results)[:200], flush=True)
         dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
+        print("After filter: ", ic_path, str(dataset_results)[:200], flush=True)
 
     for ic_path in sorted_icps:
         print("Before strip: ", ic_path, str(dataset_results)[:200], flush=True)
