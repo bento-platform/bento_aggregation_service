@@ -16,11 +16,11 @@ from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new
 AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
-__all__ = ["FederatedDatasetSearchHandler"]
+__all__ = ["FederatedDatasetsSearchHandler"]
 
 
 # noinspection PyAbstractClass
-class FederatedDatasetSearchHandler(RequestHandler):
+class FederatedDatasetsSearchHandler(RequestHandler):
     @staticmethod
     async def search_worker(peer_queue: Queue, request_body: bytes, responses: list):
         client = AsyncHTTPClient()

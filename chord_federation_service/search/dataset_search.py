@@ -22,7 +22,7 @@ AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=Servic
 
 
 __all__ = [
-    "DatasetSearchHandler",
+    "DatasetsSearchHandler",
     "PrivateDatasetSearchHandler",
 ]
 
@@ -258,6 +258,7 @@ def process_dataset_results(
     dataset_object_schema: dict,
     include_internal_data: bool,
     ic_paths_to_filter: Optional[List[str]] = None,
+    always_yield: bool = False,
 ):
     # TODO: Check dataset, table-level authorizations
 
@@ -285,14 +286,24 @@ def process_dataset_results(
     #  - A join query is present and evaluates to True against the dataset.
     # Need to mark this query as internal, since the federation service "gets" extra privileges here
     # (joined data isn't explicitly exposed.)
+    # TODO: Derive this from before; don't re-calculate
+    # TODO: This is a bad solution - see elsewhere where this is discussed
+    included_data_types = set(dt for dt, q in data_type_queries.items() if q is not True)
     # TODO: Optimize by not fetching if the query isn't going anywhere (i.e. no linked field sets, 2+ data types)
     if ((join_query_ast is None and any(len(dtr) > 0 for dtr in dataset_results.values())
-         and len(data_type_queries) == 1) or (join_query_ast is not None and ic)):
+         and len(included_data_types) == 1) or (join_query_ast is not None and ic)):
         yield {
             **dataset,
             **({"results": _filter_results_by_index_combinations(dataset_results, ic, ic_paths_to_filter),
                 "index_combinations": ic} if include_internal_data else {})
         }  # TODO: Make sure all information here is public-level if include_internal_data is False.
+
+    if always_yield:  # If true, yield even for empty search results
+        yield {
+            **dataset,
+            **({"results": {dt: [] for dt in data_type_queries},
+                "index_combinations": []} if include_internal_data else {}),
+        }
 
 
 def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
@@ -451,7 +462,7 @@ def test_queries(queries: TypingIterable[Query]) -> None:
 
 
 # noinspection PyAbstractClass
-class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
+class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated service?
     """
     Aggregates tables into datasets and runs a query against the data. Does not reveal internal object-level data.
     """
@@ -541,6 +552,11 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
 # noinspection PyAbstractClass
 class PrivateDatasetSearchHandler(RequestHandler):
+    """
+    Searches a specific dataset's tables, showing full object-level results. Unlike DatasetsSearchHandler, does not
+    search across multiple datasets.
+    """
+
     include_internal_results = True
 
     async def options(self, _dataset_id: str):
@@ -592,7 +608,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 dataset_object_schema,
                 include_internal_data=True,
                 ic_paths_to_filter=ic_paths_to_filter,
-            ), "null"))
+                always_yield=True,
+            )))
 
             self.set_header("Content-Type", "application/json")
 
