@@ -315,6 +315,7 @@ async def run_search_on_dataset(
     dataset_join_query = join_query
 
     table_data_types = set(t["data_type"] for t in dataset["table_ownership"])
+    excluded_data_types = set()
 
     dataset_results = {}
 
@@ -331,10 +332,12 @@ async def run_search_on_dataset(
         # Give it a boilerplate array schema and result set; there won't be anything there anyway
         dataset_object_schema["properties"][dt] = {"type": "array"}
         dataset_results[dt] = []
+        excluded_data_types.add(dt)
 
     if dataset_join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
-        dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries))
+        dataset_join_query = _linked_field_sets_to_join_query(
+            linked_field_sets, set(data_type_queries) - excluded_data_types)
 
     ic_paths_to_filter = _get_array_resolve_paths(dataset_join_query) if include_internal_results else []
 
