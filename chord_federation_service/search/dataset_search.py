@@ -316,7 +316,7 @@ async def run_search_on_dataset(
 
     table_data_types = set(t["data_type"] for t in dataset["table_ownership"])
 
-    for dt, dt_q in filter(lambda dt2: dt2 not in table_data_types, data_type_queries.items()):
+    for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
         # If there are no tables of a particular data type, we don't get the schema. If this happens, return no results
         # unless the query is hard-coded to be True, in which case put in a fake schema.
         # TODO: Come up with something more elegant/intuitive here - a way to resolve data types?
