@@ -1,5 +1,7 @@
 import itertools
 import json
+import sys
+import traceback
 
 from chord_lib.responses.errors import bad_request_error, internal_server_error
 from chord_lib.search.data_structure import check_ast_against_data_structure
@@ -516,7 +518,8 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
 
         except HTTPError as e:
             # Metadata service error
-            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", flush=True)  # TODO: Better message
+            # TODO: Better message
+            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", file=sys.stderr, flush=True)
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -524,9 +527,10 @@ class DatasetSearchHandler(RequestHandler):  # TODO: Move to another dedicated s
             # TODO: Better / more compliant error message
             # TODO: Move these up?
             # TODO: Not guaranteed to be actually query-processing errors
-            print(str(e))
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
+            print(f"Encountered query processing error: {str(e)}", file=sys.stderr, flush=True)
+            traceback.print_exc()
 
 
 # noinspection PyAbstractClass
@@ -588,7 +592,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
 
         except HTTPError as e:
             # Metadata service error
-            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", flush=True)  # TODO: Better message
+            # TODO: Better message
+            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", file=sys.stderr, flush=True)
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -596,6 +601,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
             # TODO: Better / more compliant error message
             # TODO: Move these up?
             # TODO: Not guaranteed to be actually query-processing errors
-            print(str(e))
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
+            print(f"Encountered query processing error: {str(e)}", file=sys.stderr, flush=True)
+            traceback.print_exc()
