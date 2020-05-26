@@ -314,7 +314,18 @@ async def run_search_on_dataset(
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     dataset_join_query = join_query
 
-    table_data_types = set(t["data_type"] for t in dataset["table_ownership"])
+    table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
+    for t in dataset["table_ownership"]:  # TODO: Job
+        # TODO: Don't fetch schema except for first time?
+        table_ownerships_and_records.append((t, await peer_fetch(
+            client,
+            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+            f"api/{t['service_artifact']}/tables/{t['table_id']}",
+            method="GET",
+            extra_headers=DATASET_SEARCH_HEADERS
+        )))
+
+    table_data_types = set(t[1]["data_type"] for t in table_ownerships_and_records)
     excluded_data_types = set()
 
     dataset_results = {}
@@ -355,16 +366,7 @@ async def run_search_on_dataset(
 
         print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {dataset_join_query}", flush=True)
 
-    for t in dataset["table_ownership"]:
-        # TODO: Don't fetch schema
-        table_record = await peer_fetch(
-            client,
-            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-            f"api/{t['service_artifact']}/tables/{t['table_id']}",
-            method="GET",
-            extra_headers=DATASET_SEARCH_HEADERS
-        )
-
+    for t, table_record in table_ownerships_and_records:
         table_id = table_record["id"]
         table_data_type = table_record["data_type"]
         table_service_artifact = t["service_artifact"]
