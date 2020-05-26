@@ -312,6 +312,21 @@ async def run_search_on_dataset(
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     dataset_join_query = join_query
 
+    table_data_types = set(t["data_type"] for t in dataset["table_ownership"])
+
+    for dt, dt_q in filter(lambda dt2: dt2 not in table_data_types, data_type_queries.items()):
+        # If there are no tables of a particular data type, we don't get the schema. If this happens, return no results
+        # unless the query is hard-coded to be True, in which case put in a fake schema.
+        # TODO: Come up with something more elegant/intuitive here - a way to resolve data types?
+        # TODO: This may sometimes return the wrong result - should check for resolves instead
+
+        # This CANNOT be simplified to "if not dt_q:"; other truth-y values don't have the same meaning.
+        if dt_q is not True:
+            return {dt2: [] for dt2 in data_type_queries}, None, []
+
+        # Give it a boilerplate array schema; there won't be anything there anyway
+        dataset_object_schema["properties"][dt] = {"type": "array"}
+
     if dataset_join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
         dataset_join_query = _linked_field_sets_to_join_query(linked_field_sets, set(data_type_queries))
