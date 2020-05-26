@@ -333,6 +333,7 @@ async def run_search_on_dataset(
         dataset_object_schema["properties"][dt] = {"type": "array"}
         dataset_results[dt] = []
         excluded_data_types.add(dt)
+        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type: {dt}", flush=True)
 
     if dataset_join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
