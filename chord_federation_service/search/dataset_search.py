@@ -316,6 +316,8 @@ async def run_search_on_dataset(
 
     table_data_types = set(t["data_type"] for t in dataset["table_ownership"])
 
+    dataset_results = {}
+
     for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
         # If there are no tables of a particular data type, we don't get the schema. If this happens, return no results
         # unless the query is hard-coded to be True, in which case put in a fake schema.
@@ -326,8 +328,9 @@ async def run_search_on_dataset(
         if dt_q is not True:
             return {dt2: [] for dt2 in data_type_queries}, None, []
 
-        # Give it a boilerplate array schema; there won't be anything there anyway
+        # Give it a boilerplate array schema and result set; there won't be anything there anyway
         dataset_object_schema["properties"][dt] = {"type": "array"}
+        dataset_results[dt] = []
 
     if dataset_join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries) to filter out combinations
@@ -347,8 +350,6 @@ async def run_search_on_dataset(
             dataset_join_query = ["#and", _augment_resolves(q, (dt, "[item]")), dataset_join_query]
 
         print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {dataset_join_query}", flush=True)
-
-    dataset_results = {}
 
     for t in dataset["table_ownership"]:
         # TODO: Don't fetch schema
