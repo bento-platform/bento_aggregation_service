@@ -590,7 +590,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 dataset_object_schema,
                 include_internal_data=True,
                 ic_paths_to_filter=ic_paths_to_filter,
-            ), None))
+            ), "null"))
 
             self.set_header("Content-Type", "application/json")
 
