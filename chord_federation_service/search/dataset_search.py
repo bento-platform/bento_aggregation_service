@@ -250,6 +250,17 @@ def _filter_results_by_index_combinations(
     return dataset_results
 
 
+def _filter_results_by_index_combinations_if_set(
+    dataset_results: Dict[str, list],
+    index_combinations: Optional[Tuple[dict]],
+    ic_paths_to_filter: List[str],
+) -> Dict[str, list]:
+    if index_combinations is None:
+        return dataset_results
+
+    return _filter_results_by_index_combinations(dataset_results, index_combinations, ic_paths_to_filter)
+
+
 def process_dataset_results(
     data_type_queries: Dict[str, Query],
     dataset_join_query: Query,
@@ -294,15 +305,14 @@ def process_dataset_results(
          and len(included_data_types) == 1) or (join_query_ast is not None and ic)):
         yield {
             **dataset,
-            **({"results": _filter_results_by_index_combinations(dataset_results, ic, ic_paths_to_filter),
-                "index_combinations": ic} if include_internal_data else {})
+            **({"results": _filter_results_by_index_combinations_if_set(dataset_results, ic, ic_paths_to_filter)}
+               if include_internal_data else {}),
         }  # TODO: Make sure all information here is public-level if include_internal_data is False.
 
     if always_yield:  # If true, yield even for empty search results
         yield {
             **dataset,
-            **({"results": {dt: [] for dt in data_type_queries},
-                "index_combinations": []} if include_internal_data else {}),
+            **({"results": {dt: [] for dt in data_type_queries}} if include_internal_data else {}),
         }
 
 
