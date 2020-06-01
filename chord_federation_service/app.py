@@ -20,8 +20,8 @@ from .constants import (
 from .db import peer_db
 from .peers.handlers import PeerHandler, PeerRefreshHandler
 from .peers.manager import PeerManager
-from .search.dataset_search import DatasetSearchHandler, PrivateDatasetSearchHandler
-from .search.federated_dataset_search import FederatedDatasetSearchHandler
+from .search.dataset_search import DatasetsSearchHandler, PrivateDatasetSearchHandler
+from .search.federated_dataset_search import FederatedDatasetsSearchHandler
 from .search.search import SearchHandler
 
 
@@ -71,9 +71,9 @@ class Application(tornado.web.Application):
             url(f"{base_path}/private/post-start-hook", PostStartHookHandler),
             url(f"{base_path}/peers", PeerHandler),
             url(f"{base_path}/private/peers/refresh", PeerRefreshHandler),
-            url(f"{base_path}/dataset-search", DatasetSearchHandler),
+            url(f"{base_path}/dataset-search", DatasetsSearchHandler),
             url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
-            url(f"{base_path}/federated-dataset-search", FederatedDatasetSearchHandler),
+            url(f"{base_path}/federated-dataset-search", FederatedDatasetsSearchHandler),
             url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
         ])
 

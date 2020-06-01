@@ -65,6 +65,11 @@ INITIALIZE_IMMEDIATELY = os.environ.get("INITIALIZE_IMMEDIATELY", "true").strip(
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
 TIMEOUT = 180  # seconds
-WORKERS = len(os.sched_getaffinity(0))
 LAST_ERRORED_CACHE_TIME = 30
 MAX_BUFFER_SIZE = 1024 ** 3  # 1 gigabyte; maximum size a response can be
+
+try:
+    # noinspection PyUnresolvedReferences
+    WORKERS = len(os.sched_getaffinity(0))
+except AttributeError:  # Some operating systems don't provide sched_getaffinity
+    WORKERS = 4  # Default to 4 workers
