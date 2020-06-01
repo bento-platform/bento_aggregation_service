@@ -177,8 +177,6 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
     :return: The data structure, stripped of Kept wrapping.
     """
 
-    print(ic_path, str(data_structure)[:200], flush=True)
-
     data_structure = _base_strip_kept(data_structure)
 
     if not ic_path:  # At the base level, so strip off any if it's an array; otherwise do nothing.
@@ -238,14 +236,10 @@ def _filter_results_by_index_combinations(
     sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
 
     for ic_path in sorted_icps:
-        print("Before filter: ", ic_path, str(dataset_results)[:200], flush=True)
         dataset_results = _filter_kept(dataset_results, ic_path.split(".")[1:])
-        print("After filter: ", ic_path, str(dataset_results)[:200], flush=True)
 
     for ic_path in sorted_icps:
-        print("Before strip: ", ic_path, str(dataset_results)[:200], flush=True)
         dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
-        print("After strip: ", ic_path, str(dataset_results)[:200], flush=True)
 
     return dataset_results
 
@@ -278,7 +272,7 @@ def process_dataset_results(
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(dataset_join_query) if dataset_join_query is not None else None
 
-    print(f"[{SERVICE_NAME} {datetime.now()}] Compiled join query: {join_query_ast}", flush=True)
+    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Compiled join query: {join_query_ast}", flush=True)
 
     # Truth-y if:
     #  - include_internal_data = False and check_ast_against_data_structure returns True
@@ -382,7 +376,7 @@ async def run_search_on_dataset(
         for dt, q in data_type_queries.items():
             dataset_join_query = ["#and", _augment_resolves(q, (dt, "[item]")), dataset_join_query]
 
-        print(f"[{SERVICE_NAME} {datetime.now()}] Generated join query: {dataset_join_query}", flush=True)
+        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Generated join query: {dataset_join_query}", flush=True)
 
     dataset_results = {}
 
@@ -546,7 +540,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         except HTTPError as e:
             # Metadata service error
             # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", file=sys.stderr, flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from service: {str(e)}", file=sys.stderr,
+                  flush=True)
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -556,7 +551,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             # TODO: Not guaranteed to be actually query-processing errors
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
-            print(f"Encountered query processing error: {str(e)}", file=sys.stderr, flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Encountered query processing error: {str(e)}",
+                  file=sys.stderr, flush=True)
             traceback.print_exc()
 
 
@@ -626,7 +622,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
         except HTTPError as e:
             # Metadata service error
             # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] Error from service: {str(e)}", file=sys.stderr, flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from service: {str(e)}", file=sys.stderr,
+                  flush=True)
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -636,5 +633,6 @@ class PrivateDatasetSearchHandler(RequestHandler):
             # TODO: Not guaranteed to be actually query-processing errors
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
-            print(f"Encountered query processing error: {str(e)}", file=sys.stderr, flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Encountered query processing error: {str(e)}",
+                  file=sys.stderr, flush=True)
             traceback.print_exc()
