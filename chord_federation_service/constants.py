@@ -41,8 +41,8 @@ __all__ = [
 
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
 CHORD_DEBUG = os.environ.get("CHORD_DEBUG", "false").lower() == "true"
-CHORD_URL = os.environ.get("CHORD_URL", "")
-CHORD_HOST = os.environ.get("CHORD_HOST", urllib.parse.urlparse(CHORD_URL).netloc if CHORD_URL != "" else "")
+CHORD_URL = os.environ.get("CHORD_URL", "").strip()
+CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
 OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI", None)
 

@@ -10,8 +10,6 @@ A service for federated search between CHORD nodes.
 
 `CHORD_URL`: ex. `http://127.0.0.1:5000/`
 
-`CHORD_HOST`: ex. `127.0.0.1:5000`
-
 `CHORD_REGISTRY_URL`: ex. `http://127.0.0.1:5000/`
 
 `OIDC_DISCOVERY_URI`:
