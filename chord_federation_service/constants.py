@@ -39,12 +39,16 @@ __all__ = [
 ]
 
 
+def _env_to_bool(var: str, default: bool = False) -> bool:
+    return os.environ.get(var, str(default)).strip().lower() == "true"
+
+
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
-CHORD_DEBUG = os.environ.get("CHORD_DEBUG", "false").lower() == "true"
+CHORD_DEBUG = _env_to_bool("CHORD_DEBUG")
 CHORD_URL = os.environ.get("CHORD_URL", "").strip()
 CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
-OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI", None)
+OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
@@ -60,7 +64,7 @@ SOCKET_INTERNAL = os.environ.get("SOCKET_INTERNAL", "/var/run/nginx.sock")  # in
 SOCKET_INTERNAL_DOMAIN = "nginx_internal"
 SOCKET_INTERNAL_URL = f"http://{SOCKET_INTERNAL_DOMAIN}/"
 
-INITIALIZE_IMMEDIATELY = os.environ.get("INITIALIZE_IMMEDIATELY", "true").strip().lower() == "true",
+INITIALIZE_IMMEDIATELY = _env_to_bool("INITIALIZE_IMMEDIATELY", default=True)
 
 CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
 
