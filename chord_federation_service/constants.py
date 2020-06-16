@@ -52,11 +52,11 @@ OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
-SERVICE_ORGANIZATION = "ca.c3g.chord"
+SERVICE_ORGANIZATION = "ca.c3g.bento"
 SERVICE_ARTIFACT = "federation"
 SERVICE_TYPE = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}:{__version__}"
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)
-SERVICE_NAME = "CHORD Federation"
+SERVICE_NAME = "Bento Federation Service"
 
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 

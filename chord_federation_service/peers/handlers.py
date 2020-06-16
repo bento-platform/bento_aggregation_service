@@ -1,6 +1,6 @@
 import json
 
-from chord_lib.responses.errors import bad_request_error, forbidden_error
+from bento_lib.responses.errors import bad_request_error, forbidden_error
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.web import RequestHandler

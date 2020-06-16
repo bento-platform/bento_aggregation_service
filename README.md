@@ -1,6 +1,6 @@
-# CHORD Federation Service
+# Bento Federation Service
 
-A service for federated search between CHORD nodes.
+A service for federated search between Bento platform nodes.
 
 ## Environment Variables
 

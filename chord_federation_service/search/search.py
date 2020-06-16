@@ -1,7 +1,7 @@
 import sys
 import tornado.gen
 
-from chord_lib.responses.errors import bad_request_error
+from bento_lib.responses.errors import bad_request_error
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.netutil import Resolver

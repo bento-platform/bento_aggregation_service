@@ -1,8 +1,8 @@
 import sys
 import tornado.gen
 
-from chord_lib.responses.errors import bad_request_error
-from chord_lib.search.queries import convert_query_to_ast_and_preprocess
+from bento_lib.responses.errors import bad_request_error
+from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver

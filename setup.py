@@ -15,12 +15,12 @@ setuptools.setup(
     version=config["package"]["version"],
 
     python_requires=">=3.6",
-    install_requires=["chord_lib==0.9.0", "tornado>=6.0,<6.1"],
+    install_requires=["bento_lib==0.11.0", "tornado>=6.0.4,<6.1"],
 
     author=config["package"]["authors"],
     author_email=config["package"]["author_emails"],
 
-    description="Search federation service for the CHORD project.",
+    description="Search federation service for the Bento platform.",
     long_description=long_description,
     long_description_content_type="text/markdown",
 

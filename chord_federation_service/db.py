@@ -45,6 +45,7 @@ def update_db():
     # TODO
 
 
+# noinspection SqlWithoutWhere
 def clear_db_and_insert_fixed_nodes():
     # TODO: Maybe this should be called at startup? Unclear
     c = peer_db.cursor()

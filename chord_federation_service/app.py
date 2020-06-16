@@ -33,7 +33,7 @@ class ServiceInfoHandler(RequestHandler):
             "id": SERVICE_ID,
             "name": SERVICE_NAME,  # TODO: Should be globally unique?
             "type": SERVICE_TYPE,
-            "description": "Federation service for a CHORD application.",
+            "description": "Federation service for a Bento platform node.",
             "organization": {
                 "name": "C3G",
                 "url": "http://www.computationalgenomics.ca"

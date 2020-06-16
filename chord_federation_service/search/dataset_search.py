@@ -3,9 +3,9 @@ import json
 import sys
 import traceback
 
-from chord_lib.responses.errors import bad_request_error, internal_server_error
-from chord_lib.search.data_structure import check_ast_against_data_structure
-from chord_lib.search.queries import convert_query_to_ast_and_preprocess, Query
+from bento_lib.responses.errors import bad_request_error, internal_server_error
+from bento_lib.search.data_structure import check_ast_against_data_structure
+from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from collections.abc import Iterable
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
