@@ -1,4 +1,5 @@
 import json
+import sys
 import tornado.gen
 
 from datetime import datetime, timedelta
@@ -81,11 +82,16 @@ class PeerManager:
                 peer_peers = r["peers"]
 
             except IndexError:
-                print(f"[{SERVICE_NAME}] Error: Invalid 200 response returned by {peer}.", flush=True)
+                print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Invalid 200 response returned by {peer}.", flush=True,
+                      file=sys.stderr)
 
-            except HTTPError as e:
-                print(f"[{SERVICE_NAME}] Peer contact error for {peer} ({str(e)})", flush=True)
-                self.last_errored[peer] = datetime.now().timestamp()
+            except (HTTPError, ValueError) as e:
+                # HTTPError:  Standard 400s/500s
+                # ValueError: ex. Unsupported url scheme: api/federation/peers
+                now = datetime.now()
+                print(f"[{SERVICE_NAME} {now}] [ERROR] Peer contact error for {peer} ({str(e)})", flush=True,
+                      file=sys.stderr)
+                self.last_errored[peer] = now.timestamp()
 
             # Incorporate the peer's peer list into the current set of peers
             peers = peers.union(peer_peers)
