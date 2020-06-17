@@ -8,7 +8,7 @@ with open("README.md", "r") as rf:
     long_description = rf.read()
 
 config = configparser.ConfigParser()
-config.read(os.path.join(os.path.dirname(os.path.realpath(__file__)), "chord_federation_service", "package.cfg"))
+config.read(os.path.join(os.path.dirname(os.path.realpath(__file__)), "bento_federation_service", "package.cfg"))
 
 setuptools.setup(
     name=config["package"]["name"],
@@ -28,10 +28,10 @@ setuptools.setup(
     include_package_data=True,
 
     entry_points={
-        "console_scripts": ["chord_federation_service=chord_federation_service.app:run"]
+        "console_scripts": ["bento_federation_service=bento_federation_service.app:run"]
     },
 
-    url="https://github.com/c3g/chord_federation_service",
+    url="https://github.com/bento-platform/bento_federation_service",
     license="LGPLv3",
     classifiers=[
         "Programming Language :: Python :: 3",

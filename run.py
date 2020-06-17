@@ -3,8 +3,8 @@
 import os
 import tornado.ioloop
 
-from chord_federation_service.app import application
-from chord_federation_service.constants import CHORD_URLS_SET, SERVICE_NAME
+from bento_federation_service.app import application
+from bento_federation_service.constants import CHORD_URLS_SET, SERVICE_NAME
 
 if __name__ == "__main__":
     if not CHORD_URLS_SET:

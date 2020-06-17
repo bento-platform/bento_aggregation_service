@@ -1,4 +1,4 @@
-import chord_federation_service
+import bento_federation_service
 import tornado.gen
 import tornado.ioloop
 import tornado.web
@@ -39,7 +39,7 @@ class ServiceInfoHandler(RequestHandler):
                 "url": "http://www.computationalgenomics.ca"
             },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
-            "version": chord_federation_service.__version__
+            "version": bento_federation_service.__version__
         })
 
 
