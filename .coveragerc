@@ -1,0 +1,3 @@
+[run]
+include =
+    bento_federation_service/*
