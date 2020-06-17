@@ -19,8 +19,11 @@ AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=Servic
 __all__ = ["FederatedDatasetsSearchHandler"]
 
 
-# noinspection PyAbstractClass
+# noinspection PyAbstractClass,PyAttributeOutsideInit
 class FederatedDatasetsSearchHandler(RequestHandler):
+    def initialize(self, peer_manager):
+        self.peer_manager = peer_manager
+
     @staticmethod
     async def search_worker(peer_queue: Queue, request_body: bytes, responses: list):
         client = AsyncHTTPClient()
@@ -69,7 +72,7 @@ class FederatedDatasetsSearchHandler(RequestHandler):
 
             # Federate out requests
 
-            peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
+            peer_queue = get_new_peer_queue(await self.peer_manager.get_peers())
             responses = []
             workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
                                          for _ in range(WORKERS)])

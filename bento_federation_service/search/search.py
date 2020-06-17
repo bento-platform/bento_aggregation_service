@@ -18,8 +18,11 @@ AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=Servic
 __all__ = ["SearchHandler"]
 
 
-# noinspection PyAbstractClass
+# noinspection PyAbstractClass,PyAttributeOutsideInit
 class SearchHandler(RequestHandler):
+    def initialize(self, peer_manager):
+        self.peer_manager = peer_manager
+
     async def search_worker(self, peer_queue: Queue, search_path: str, responses: list):
         client = AsyncHTTPClient()
 
@@ -53,7 +56,7 @@ class SearchHandler(RequestHandler):
             await self.finish(bad_request_error("Invalid request format (missing body)"))
             return
 
-        peer_queue = get_new_peer_queue(await self.application.peer_manager.get_peers())
+        peer_queue = get_new_peer_queue(await self.peer_manager.get_peers())
         responses = []
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
         await peer_queue.join()

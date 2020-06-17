@@ -25,21 +25,25 @@ __all__ = [
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class PeerHandler(RequestHandler):
+    def initialize(self, db, peer_manager):
+        self.db = db
+        self.peer_manager = peer_manager
+
     async def options(self):
         self.set_status(204)
         await self.finish()
 
     async def get(self):
-        peers = list(await self.application.peer_manager.get_peers())
-        self.write({"peers": peers, "last_updated": self.application.peer_manager.last_peers_update.timestamp()})
+        peers = list(await self.peer_manager.get_peers())
+        self.write({"peers": peers, "last_updated": self.peer_manager.last_peers_update.timestamp()})
 
     async def post(self):
         """
         Handle notifies from other nodes.
         """
 
-        c = self.application.db.cursor()
-        new_pci = self.application.peer_manager.peer_cache_invalidated
+        c = self.db.cursor()
+        new_pci = self.peer_manager.peer_cache_invalidated
 
         try:
             # Test that the peer's peers can be seen and are providing the correct service type.
@@ -59,14 +63,14 @@ class PeerHandler(RequestHandler):
                 await self.finish(forbidden_error("OIDC realm mismatch"))
                 return
 
-            if peer_self in self.application.peer_manager.notifying:
+            if peer_self in self.peer_manager.notifying:
                 # Another request is already being processed from the same node. Assume the data is the same...
                 # TODO: Is this a valid assumption?
                 self.clear()
                 self.set_status(200)  # TODO: Wrong response code?
                 return
 
-            self.application.peer_manager.notifying.add(peer_self)
+            self.peer_manager.notifying.add(peer_self)
 
             client = AsyncHTTPClient()
 
@@ -74,8 +78,8 @@ class PeerHandler(RequestHandler):
                 if peer_url in attempted_contact:
                     continue
 
-                if (peer_url in self.application.peer_manager.last_errored and
-                        datetime.now().timestamp() - self.application.peer_manager.last_errored[peer_url] <
+                if (peer_url in self.peer_manager.last_errored and
+                        datetime.now().timestamp() - self.peer_manager.last_errored[peer_url] <
                         LAST_ERRORED_CACHE_TIME):
                     # Avoid repetitively hitting dead nodes
                     continue
@@ -94,20 +98,20 @@ class PeerHandler(RequestHandler):
                         # Peer two-way communication is possible
                         new_pci = new_pci or not check_peer_exists(c, peer_url)
                         insert_or_ignore_peer(c, peer_url)
-                        self.application.db.commit()
+                        self.db.commit()
 
                 except Exception as e:  # Parse error or HTTP error
                     # TODO: Better / more compliant error message, don't return early
-                    self.application.peer_manager.last_errored[peer_url] = datetime.now().timestamp()
+                    self.peer_manager.last_errored[peer_url] = datetime.now().timestamp()
                     print(f"[{SERVICE_NAME} {datetime.now()}] Error when processing notify from peer {peer_url}.\n"
                           f"    Error: {str(e)}", flush=True)
 
                 finally:
                     attempted_contact.add(peer_url)
 
-            self.application.peer_manager.notifying.remove(peer_self)
+            self.peer_manager.notifying.remove(peer_self)
 
-            self.application.peer_manager.peer_cache_invalidated = new_pci
+            self.peer_manager.peer_cache_invalidated = new_pci
             self.clear()
             self.set_status(204)
 
@@ -118,8 +122,11 @@ class PeerHandler(RequestHandler):
             await self.finish(bad_request_error("Invalid request body or other Python KeyError"))  # TODO: Better msg
 
 
-# noinspection PyAbstractClass
+# noinspection PyAbstractClass,PyAttributeOutsideInit
 class PeerRefreshHandler(RequestHandler):
+    def initialize(self, peer_manager):
+        self.peer_manager = peer_manager
+
     async def post(self):
         """
         Handles refreshing the peer list if a user decides to clear existing nodes.
@@ -129,8 +136,8 @@ class PeerRefreshHandler(RequestHandler):
         clear_db_and_insert_fixed_nodes()
 
         # Invalidate in-memory peer cache and force a refresh
-        self.application.peer_manager.peer_cache_invalidated = True
-        self.application.peer_manager.get_peers()
+        self.peer_manager.peer_cache_invalidated = True
+        self.peer_manager.get_peers()
 
         self.clear()
         self.set_status(204)

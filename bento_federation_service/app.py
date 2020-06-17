@@ -48,15 +48,18 @@ async def post_start_hook(peer_manager: PeerManager):
     print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook finished", flush=True)
 
 
-# noinspection PyAbstractClass
+# noinspection PyAbstractClass,PyAttributeOutsideInit
 class PostStartHookHandler(RequestHandler):
+    def initialize(self, peer_manager):
+        self.peer_manager = peer_manager
+
     async def get(self):
         """
         Handles post-start hook which pings the node registry with the current node's information.
         :return:
         """
         print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook invoked via URL request", flush=True)
-        await post_start_hook(self.application.peer_manager)
+        await post_start_hook(self.peer_manager)
         self.clear()
         self.set_status(204)
 
@@ -66,15 +69,18 @@ class Application(tornado.web.Application):
         self.db = db
         self.peer_manager = PeerManager(self.db)
 
-        super(Application, self).__init__([
+        args_pm = dict(peer_manager=self.peer_manager)
+        args_full = dict(db=db, peer_manager=self.peer_manager)
+
+        super().__init__([
             url(f"{base_path}/service-info", ServiceInfoHandler),
-            url(f"{base_path}/private/post-start-hook", PostStartHookHandler),
-            url(f"{base_path}/peers", PeerHandler),
-            url(f"{base_path}/private/peers/refresh", PeerRefreshHandler),
+            url(f"{base_path}/private/post-start-hook", PostStartHookHandler, args_pm),
+            url(f"{base_path}/peers", PeerHandler, args_full),
+            url(f"{base_path}/private/peers/refresh", PeerRefreshHandler, args_pm),
             url(f"{base_path}/dataset-search", DatasetsSearchHandler),
             url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
-            url(f"{base_path}/federated-dataset-search", FederatedDatasetsSearchHandler),
-            url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler),
+            url(f"{base_path}/federated-dataset-search", FederatedDatasetsSearchHandler, args_pm),
+            url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler, args_pm),
         ])
 
         if INITIALIZE_IMMEDIATELY:
