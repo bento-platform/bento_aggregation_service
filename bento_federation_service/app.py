@@ -78,7 +78,7 @@ class Application(tornado.web.Application):
         ])
 
         if INITIALIZE_IMMEDIATELY:
-            post_start_hook(self.peer_manager)
+            tornado.ioloop.IOLoop.current().spawn_callback(post_start_hook, self.peer_manager)
 
 
 application = Application(peer_db, BASE_PATH)
@@ -91,4 +91,4 @@ def run():  # pragma: no cover
 
     server = HTTPServer(application)
     server.add_socket(bind_unix_socket(SERVICE_SOCKET))
-    tornado.ioloop.IOLoop.instance().start()
+    tornado.ioloop.IOLoop.current().start()
