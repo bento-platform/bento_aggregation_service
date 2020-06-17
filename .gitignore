@@ -4,3 +4,6 @@ env
 .idea/rSettings.xml
 *.db
 __pycache__
+.coverage
+.tox/
+htmlcov/

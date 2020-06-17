@@ -84,7 +84,7 @@ class Application(tornado.web.Application):
 application = Application(peer_db, BASE_PATH)
 
 
-def run():
+def run():  # pragma: no cover
     if not CHORD_URLS_SET:
         print(f"[{SERVICE_NAME} {datetime.utcnow()}] No CHORD URLs given, terminating...")
         exit(1)
