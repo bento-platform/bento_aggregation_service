@@ -1,6 +1,8 @@
 import os
 import sqlite3
 
+from urllib.parse import urlparse
+
 from .constants import CHORD_URL, CHORD_REGISTRY_URL, DB_PATH
 
 
@@ -15,6 +17,17 @@ def check_peer_exists(c, url) -> bool:
 
 
 def insert_or_ignore_peer(c, n):
+    # Check validity of node URL first to avoid filling our database with bad entries (in case of misconfiguration)
+    # Require: scheme, netloc
+    # Forbid:  params, query, fragment
+
+    pn = urlparse(n)
+    if not pn.scheme or not pn.netloc or pn.params or pn.query or pn.fragment:
+        return
+
+    if n[-1] != "/":  # Add a trailing slash if not present to keep URLs consistent
+        n += "/"
+
     c.execute("INSERT OR IGNORE INTO peers VALUES (?)", (n,))
 
 
