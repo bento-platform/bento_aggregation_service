@@ -8,10 +8,10 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
+from typing import Optional
 
 from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
-from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue
-
+from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue, get_auth_header
 
 AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
@@ -25,7 +25,7 @@ class FederatedDatasetsSearchHandler(RequestHandler):
         self.peer_manager = peer_manager
 
     @staticmethod
-    async def search_worker(peer_queue: Queue, request_body: bytes, responses: list):
+    async def search_worker(peer_queue: Queue, request_body: bytes, auth_header: Optional[str], responses: list):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
@@ -34,8 +34,14 @@ class FederatedDatasetsSearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append((peer, await peer_fetch(client, peer, "api/federation/dataset-search",
-                                                         request_body=request_body, method="POST")))
+                responses.append((peer, await peer_fetch(
+                    client,
+                    peer,
+                    "api/federation/dataset-search",
+                    request_body=request_body,
+                    method="POST",
+                    auth_header=auth_header,
+                )))
 
             except HTTPError as e:
                 # TODO: Less broad of an exception
@@ -59,6 +65,8 @@ class FederatedDatasetsSearchHandler(RequestHandler):
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries or join_query)"))
             return
 
+        auth_header = get_auth_header(self.request.headers)
+
         try:
             # Check for query errors
 
@@ -74,7 +82,7 @@ class FederatedDatasetsSearchHandler(RequestHandler):
 
             peer_queue = get_new_peer_queue(await self.peer_manager.get_peers())
             responses = []
-            workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, responses)
+            workers = tornado.gen.multi([self.search_worker(peer_queue, self.request.body, auth_header, responses)
                                          for _ in range(WORKERS)])
             await peer_queue.join()
 

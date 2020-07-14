@@ -15,6 +15,7 @@ __all__ = [
     "ServiceSocketResolver",
     "get_request_json",
     "get_new_peer_queue",
+    "get_auth_header",
 ]
 
 
@@ -22,7 +23,7 @@ RequestBody = Optional[Union[bytes, str]]
 
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: RequestBody = None,
-                     method: str = "POST", extra_headers: Optional[dict] = None):
+                     method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None):
     if CHORD_DEBUG:
         print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
 
@@ -37,7 +38,8 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         body=request_body,
         headers={
             **({} if request_body is None else {"Content-Type": "application/json; charset=UTF-8"}),
-            **({} if extra_headers is None else extra_headers)
+            **({"Authorization": auth_header} if auth_header else {}),
+            **(extra_headers or {}),
         },
         raise_error=True
     )
@@ -77,3 +79,8 @@ def get_new_peer_queue(peers: Iterable) -> Queue:
         peer_queue.put_nowait(peer)
 
     return peer_queue
+
+
+# TODO: Replace with bento_lib
+def get_auth_header(headers: dict) -> Optional[str]:
+    return headers.get("X-Authorization", headers.get("Authorization"))

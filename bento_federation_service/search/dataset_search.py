@@ -1,6 +1,7 @@
 import itertools
 import json
 import sys
+import tornado.gen
 import traceback
 
 from bento_lib.responses.errors import bad_request_error, internal_server_error
@@ -10,12 +11,13 @@ from collections.abc import Iterable
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.netutil import Resolver
+from tornado.queues import Queue
 from tornado.web import RequestHandler
 
 from typing import Any, Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
 
-from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL
-from ..utils import peer_fetch, ServiceSocketResolver, get_request_json
+from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
+from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_auth_header
 
 
 AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
@@ -325,6 +327,7 @@ async def run_search_on_dataset(
     join_query: Query,
     data_type_queries: Dict[str, Query],
     include_internal_results: bool,
+    auth_header: Optional[str] = None,
 ) -> Tuple[Dict[str, list], Query, List[str]]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     dataset_join_query = join_query
@@ -337,6 +340,7 @@ async def run_search_on_dataset(
             SOCKET_INTERNAL_URL,  # Use Unix socket resolver
             f"api/{t['service_artifact']}/tables/{t['table_id']}",
             method="GET",
+            auth_header=auth_header,
             extra_headers=DATASET_SEARCH_HEADERS
         )))
 
@@ -473,6 +477,45 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
 
     include_internal_results = False
 
+    @classmethod
+    async def search_worker(
+        cls,
+
+        # Input queue
+        dataset_queue: Queue,
+
+        # Input values
+        dataset_object_schema: dict,
+        join_query,
+        data_type_queries,
+        auth_header: Optional[str],
+
+        # Output references
+        dataset_objects_dict: dict,
+        dataset_join_queries: dict,
+    ):
+        client = AsyncHTTPClient()
+
+        async for dataset in dataset_queue:
+            if dataset is None:
+                # Exit signal
+                return
+
+            dataset_id = dataset["identifier"]
+
+            dataset_results, dataset_join_query, _ = await run_search_on_dataset(
+                client,
+                dataset_object_schema,
+                dataset,
+                join_query,
+                data_type_queries,
+                cls.include_internal_results,
+                auth_header,
+            )
+
+            dataset_objects_dict[dataset_id] = dataset_results
+            dataset_join_queries[dataset_id] = dataset_join_query
+
     async def options(self):
         self.set_status(204)
         await self.finish()
@@ -486,6 +529,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
 
         results = []
 
+        auth_header = get_auth_header(self.request.headers)
+
         try:
             # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
             test_queries(data_type_queries.values())
@@ -496,8 +541,14 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
             # Use Unix socket resolver
 
-            projects = await peer_fetch(client, SOCKET_INTERNAL_URL, "api/metadata/api/projects", method="GET",
-                                        extra_headers=DATASET_SEARCH_HEADERS)
+            projects = await peer_fetch(
+                client,
+                SOCKET_INTERNAL_URL,
+                "api/metadata/api/projects",
+                method="GET",
+                auth_header=auth_header,
+                extra_headers=DATASET_SEARCH_HEADERS
+            )
 
             datasets_dict: Dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
             dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict}
@@ -509,18 +560,26 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
 
             dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
 
-            for dataset_id, dataset in datasets_dict.items():  # TODO: Worker
-                dataset_results, dataset_join_query, _ = await run_search_on_dataset(
-                    client,
+            dataset_queue = Queue()
+            for dataset in datasets_dict.values():
+                dataset_queue.put_nowait(dataset)
+
+            # Spawn workers to handle asynchronous requests to various datasets
+            search_workers = tornado.gen.multi([
+                self.search_worker(
+                    dataset_queue,
+
                     dataset_object_schema,
-                    datasets_dict[dataset_id],
                     join_query,
                     data_type_queries,
-                    self.include_internal_results,
-                )
+                    auth_header,
 
-                dataset_objects_dict[dataset_id] = dataset_results
-                dataset_join_queries[dataset_id] = dataset_join_query
+                    dataset_objects_dict,
+                    dataset_join_queries,
+                )
+                for _ in range(WORKERS)
+            ])
+            await dataset_queue.join()
 
             print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
@@ -536,6 +595,15 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 ))
 
             self.write({"results": results})
+
+            await self.finish()
+
+            # Trigger exit for all search workers
+            for _ in range(WORKERS):
+                dataset_queue.put_nowait(None)
+
+            # Wait for workers to exit
+            await search_workers
 
         except HTTPError as e:
             # Metadata service error
@@ -576,6 +644,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
             return
 
+        auth_header = get_auth_header(self.request.headers)
+
         try:
             # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
             test_queries(data_type_queries.values())
@@ -589,6 +659,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 SOCKET_INTERNAL_URL,
                 f"api/metadata/api/datasets/{dataset_id}",
                 method="GET",
+                auth_header=auth_header,
                 extra_headers=DATASET_SEARCH_HEADERS
             )
 

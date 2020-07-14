@@ -7,10 +7,10 @@ from tornado.httpclient import AsyncHTTPClient
 from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
+from typing import Optional
 
 from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
-from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue
-
+from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue, get_auth_header
 
 AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
@@ -23,7 +23,7 @@ class SearchHandler(RequestHandler):
     def initialize(self, peer_manager):
         self.peer_manager = peer_manager
 
-    async def search_worker(self, peer_queue: Queue, search_path: str, responses: list):
+    async def search_worker(self, peer_queue: Queue, search_path: str, auth_header: Optional[str], responses: list):
         client = AsyncHTTPClient()
 
         async for peer in peer_queue:
@@ -31,7 +31,13 @@ class SearchHandler(RequestHandler):
                 return
 
             try:
-                responses.append((peer, await peer_fetch(client, peer, f"api/{search_path}", self.request.body)))
+                responses.append((peer, await peer_fetch(
+                    client,
+                    peer,
+                    f"api/{search_path}",
+                    request_body=self.request.body,
+                    auth_header=auth_header,
+                )))
 
             except Exception as e:
                 # TODO: Less broad of an exception
@@ -56,9 +62,12 @@ class SearchHandler(RequestHandler):
             await self.finish(bad_request_error("Invalid request format (missing body)"))
             return
 
+        auth_header = get_auth_header(self.request.headers)
+
         peer_queue = get_new_peer_queue(await self.peer_manager.get_peers())
         responses = []
-        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, responses) for _ in range(WORKERS)])
+        workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, auth_header, responses)
+                                     for _ in range(WORKERS)])
         await peer_queue.join()
 
         try:
