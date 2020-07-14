@@ -10,7 +10,7 @@ from tornado.queues import Queue
 from tornado.web import RequestHandler
 from typing import Optional
 
-from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
+from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS, CHORD_URL
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue, get_auth_header
 
 AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
@@ -40,7 +40,10 @@ class FederatedDatasetsSearchHandler(RequestHandler):
                     "api/federation/dataset-search",
                     request_body=request_body,
                     method="POST",
-                    auth_header=auth_header,
+
+                    # Only pass the bearer token to our own node (otherwise it could be hijacked)
+                    # TODO: How to share auth?
+                    auth_header=(auth_header if peer == CHORD_URL else None),
                 )))
 
             except HTTPError as e:
