@@ -501,20 +501,31 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 # Exit signal
                 return
 
-            dataset_id = dataset["identifier"]
+            try:
+                dataset_id = dataset["identifier"]
 
-            dataset_results, dataset_join_query, _ = await run_search_on_dataset(
-                client,
-                dataset_object_schema,
-                dataset,
-                join_query,
-                data_type_queries,
-                cls.include_internal_results,
-                auth_header,
-            )
+                dataset_results, dataset_join_query, _ = await run_search_on_dataset(
+                    client,
+                    dataset_object_schema,
+                    dataset,
+                    join_query,
+                    data_type_queries,
+                    cls.include_internal_results,
+                    auth_header,
+                )
 
-            dataset_objects_dict[dataset_id] = dataset_results
-            dataset_join_queries[dataset_id] = dataset_join_query
+                dataset_objects_dict[dataset_id] = dataset_results
+                dataset_join_queries[dataset_id] = dataset_join_query
+
+            except HTTPError as e:  # Thrown from run_search_on_dataset
+                # Metadata service error
+                # TODO: Better message
+                # TODO: Set error code outside worker?
+                print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from dataset search: {str(e)}", file=sys.stderr,
+                      flush=True)
+
+            finally:
+                dataset_queue.task_done()
 
     async def options(self):
         self.set_status(204)
