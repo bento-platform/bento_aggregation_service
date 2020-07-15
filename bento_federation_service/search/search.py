@@ -67,7 +67,8 @@ async def perform_search(handler: RequestHandler, search_path: str, method: str,
 
     try:
         if dataset_search:
-            # Check for query errors
+            # Check for query errors if we know that this request should be of a specific
+            # (dataset search) format.
 
             # Try compiling join query to make sure it works (if it's not null, i.e. unspecified)
             if request["join_query"] is not None:
@@ -89,15 +90,13 @@ async def perform_search(handler: RequestHandler, search_path: str, method: str,
         await peer_queue.join()
 
         try:
-            handler.write({"results": {n: r["results"] if r is not None else None for n, r in responses}})
+            await handler.finish({"results": {n: r["results"] if r is not None else None for n, r in responses}})
 
         except KeyError as e:
             print(f"[{SERVICE_NAME} {datetime.now()}] Key error: {str(e)}", flush=True, file=sys.stderr)
             handler.clear()
             handler.set_status(400)
-            handler.write(bad_request_error())  # TODO: What message to send?
-
-        await handler.finish()
+            await handler.finish(bad_request_error())  # TODO: What message to send?
 
         # Trigger exit for all workers
         for _ in range(WORKERS):
