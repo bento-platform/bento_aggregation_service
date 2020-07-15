@@ -6,14 +6,13 @@ from bento_lib.responses.errors import bad_request_error, internal_server_error
 from bento_lib.search.queries import Query
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
-from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
 from typing import Dict, Optional
 
-from bento_federation_service.constants import CHORD_URL, MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
-from bento_federation_service.utils import peer_fetch, ServiceSocketResolver, get_auth_header
+from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
+from bento_federation_service.utils import peer_fetch, get_auth_header
 
 from .constants import DATASET_SEARCH_HEADERS
 from .dataset_search import run_search_on_dataset
@@ -24,9 +23,6 @@ from .query_utils import get_query_parts, test_queries
 __all__ = [
     "DatasetsSearchHandler",
 ]
-
-
-AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 # noinspection PyAbstractClass

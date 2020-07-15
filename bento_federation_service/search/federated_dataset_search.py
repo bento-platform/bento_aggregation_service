@@ -5,15 +5,12 @@ from bento_lib.responses.errors import bad_request_error
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
-from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 from typing import Optional
 
-from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS, CHORD_URL
-from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue, get_auth_header
-
-AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
+from ..constants import SERVICE_NAME, WORKERS, CHORD_URL
+from ..utils import peer_fetch, get_request_json, get_new_peer_queue, get_auth_header
 
 
 __all__ = ["FederatedDatasetsSearchHandler"]

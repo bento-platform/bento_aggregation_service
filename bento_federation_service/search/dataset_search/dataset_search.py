@@ -5,22 +5,18 @@ import tornado.gen
 from bento_lib.search.queries import Query
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
-from tornado.netutil import Resolver
 from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_federation_service.constants import CHORD_URL, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
-from bento_federation_service.utils import peer_fetch, ServiceSocketResolver
+from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
+from bento_federation_service.utils import peer_fetch
 from .constants import DATASET_SEARCH_HEADERS
 
 
 __all__ = [
     "run_search_on_dataset",
 ]
-
-
-AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
 
 
 FieldSpec = List[str]
@@ -121,7 +117,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             # TODO: Don't fetch schema except for first time?
             table_ownerships_and_records.append((t, await peer_fetch(
                 client,
-                SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                CHORD_URL,  # Use Unix socket resolver
                 f"api/{t['service_artifact']}/tables/{t['table_id']}",
                 method="GET",
                 auth_header=auth_header,
@@ -225,9 +221,6 @@ async def run_search_on_dataset(
                     "type": "array",
                     "items": table_record["schema"] if table_data_type in data_type_queries else {}
                 }
-
-            # TODO: We should only fetch items that match including sub-items (e.g. limited calls) by using
-            #  all index combinations that match and combining them... something like that
 
             dataset_results[table_data_type].extend((await peer_fetch(
                 client,

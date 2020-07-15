@@ -4,15 +4,12 @@ import tornado.gen
 from bento_lib.responses.errors import bad_request_error
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
-from tornado.netutil import Resolver
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 from typing import Optional
 
-from ..constants import MAX_BUFFER_SIZE, SERVICE_NAME, WORKERS
-from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_new_peer_queue, get_auth_header
-
-AsyncHTTPClient.configure(None, max_buffer_size=MAX_BUFFER_SIZE, resolver=ServiceSocketResolver(resolver=Resolver()))
+from ..constants import CHORD_URL, SERVICE_NAME, WORKERS
+from ..utils import peer_fetch, get_request_json, get_new_peer_queue, get_auth_header
 
 
 __all__ = ["SearchHandler"]
@@ -36,7 +33,10 @@ class SearchHandler(RequestHandler):
                     peer,
                     f"api/{search_path}",
                     request_body=self.request.body,
-                    auth_header=auth_header,
+
+                    # Only pass the bearer token to our own node (otherwise it could be hijacked)
+                    # TODO: How to share auth?
+                    auth_header=(auth_header if peer == CHORD_URL else None),
                 )))
 
             except Exception as e:
