@@ -20,7 +20,8 @@ from .constants import (
 from .db import peer_db
 from .peers.handlers import PeerHandler, PeerRefreshHandler
 from .peers.manager import PeerManager
-from .search.dataset_search import DatasetsSearchHandler, PrivateDatasetSearchHandler
+from .search.dataset_search.private_search_handler import PrivateDatasetSearchHandler
+from .search.dataset_search.search_handler import DatasetsSearchHandler
 from .search.federated_dataset_search import FederatedDatasetsSearchHandler
 from .search.search import SearchHandler
 
