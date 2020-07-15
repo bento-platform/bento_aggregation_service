@@ -320,6 +320,31 @@ def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
     ]
 
 
+async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
+                                         table_ownerships_and_records: List[Tuple[dict, dict]]):
+    client = AsyncHTTPClient()
+
+    async for t in table_queue:
+        if t is None:
+            # Exit signal
+            return
+
+        try:
+            # TODO: Don't fetch schema except for first time?
+            table_ownerships_and_records.append((t, await peer_fetch(
+                client,
+                SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                f"api/{t['service_artifact']}/tables/{t['table_id']}",
+                method="GET",
+                auth_header=auth_header,
+                extra_headers=DATASET_SEARCH_HEADERS
+            )))
+            # TODO: Handle HTTP errors
+
+        finally:
+            table_queue.task_done()
+
+
 async def run_search_on_dataset(
     client: AsyncHTTPClient,
     dataset_object_schema: dict,
@@ -333,16 +358,20 @@ async def run_search_on_dataset(
     dataset_join_query = join_query
 
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
-    for t in dataset["table_ownership"]:  # TODO: Job
-        # TODO: Don't fetch schema except for first time?
-        table_ownerships_and_records.append((t, await peer_fetch(
-            client,
-            SOCKET_INTERNAL_URL,  # Use Unix socket resolver
-            f"api/{t['service_artifact']}/tables/{t['table_id']}",
-            method="GET",
-            auth_header=auth_header,
-            extra_headers=DATASET_SEARCH_HEADERS
-        )))
+
+    table_queue = Queue()
+    for table_ownership in dataset["table_ownership"]:
+        table_queue.put_nowait(table_ownership)
+
+    table_definition_workers = tornado.gen.multi([
+        _fetch_table_definition_worker(
+            table_queue,
+            auth_header,
+            table_ownerships_and_records,
+        )
+        for _ in range(WORKERS)
+    ])
+    await table_queue.join()
 
     table_data_types = set(t[1]["data_type"] for t in table_ownerships_and_records)
     excluded_data_types = set()
@@ -382,12 +411,21 @@ async def run_search_on_dataset(
 
         print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Generated join query: {dataset_join_query}", flush=True)
 
+    # Trigger exit for all table workers
+    for _ in range(WORKERS):
+        table_queue.put_nowait(None)
+
+    # Wait for workers to exit
+    await table_definition_workers
+
+    # -------------------- Start running search on tables --------------------
+
     dataset_results = {}
 
-    for t, table_record in table_ownerships_and_records:
+    for table_ownership, table_record in table_ownerships_and_records:  # TODO: Worker
         table_id = table_record["id"]
         table_data_type = table_record["data_type"]
-        table_service_artifact = t["service_artifact"]
+        table_service_artifact = table_ownership["service_artifact"]
 
         if table_data_type not in dataset_results:
             dataset_results[table_data_type] = []
@@ -409,6 +447,7 @@ async def run_search_on_dataset(
                 f"api/{table_service_artifact}/private/tables/{table_id}/search",
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
+                auth_header=auth_header,
                 extra_headers=DATASET_SEARCH_HEADERS
             ))["results"] if table_data_type in data_type_queries else [])
 
@@ -425,7 +464,8 @@ async def run_search_on_dataset(
                 ),
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
-                extra_headers=DATASET_SEARCH_HEADERS
+                auth_header=auth_header,
+                extra_headers=DATASET_SEARCH_HEADERS,
             )
 
             if not include_internal_results:
@@ -685,7 +725,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 dataset,
                 join_query,
                 data_type_queries,
-                self.include_internal_results
+                self.include_internal_results,
+                auth_header,
             )
 
             self.write(next(process_dataset_results(
