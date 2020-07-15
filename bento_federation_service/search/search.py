@@ -9,7 +9,7 @@ from tornado.web import RequestHandler
 from typing import Optional
 
 from ..constants import CHORD_URL, SERVICE_NAME, WORKERS
-from ..utils import peer_fetch, get_request_json, get_new_peer_queue, get_auth_header
+from ..utils import peer_fetch, get_request_json, iterable_to_queue, get_auth_header
 
 
 __all__ = ["SearchHandler"]
@@ -64,7 +64,7 @@ class SearchHandler(RequestHandler):
 
         auth_header = get_auth_header(self.request.headers)
 
-        peer_queue = get_new_peer_queue(await self.peer_manager.get_peers())
+        peer_queue = iterable_to_queue(await self.peer_manager.get_peers())
         responses = []
         workers = tornado.gen.multi([self.search_worker(peer_queue, search_path, auth_header, responses)
                                      for _ in range(WORKERS)])

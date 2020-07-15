@@ -11,7 +11,7 @@ from .constants import CHORD_DEBUG, SERVICE_NAME, TIMEOUT
 __all__ = [
     "peer_fetch",
     "get_request_json",
-    "get_new_peer_queue",
+    "iterable_to_queue",
     "get_auth_header",
 ]
 
@@ -55,12 +55,12 @@ def get_request_json(request_body: bytes) -> Optional[dict]:
     # Otherwise, return None implicitly
 
 
-def get_new_peer_queue(peers: Iterable) -> Queue:
-    peer_queue = Queue()
-    for peer in peers:
-        peer_queue.put_nowait(peer)
+def iterable_to_queue(iterable: Iterable) -> Queue:
+    queue = Queue()
+    for item in iterable:
+        queue.put_nowait(item)
 
-    return peer_queue
+    return queue
 
 
 # TODO: Replace with bento_lib
