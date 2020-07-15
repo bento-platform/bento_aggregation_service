@@ -10,7 +10,7 @@ from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_federation_service.constants import MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
+from bento_federation_service.constants import CHORD_URL, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
 from bento_federation_service.utils import peer_fetch, ServiceSocketResolver
 from .constants import DATASET_SEARCH_HEADERS
 
@@ -231,11 +231,11 @@ async def run_search_on_dataset(
 
             dataset_results[table_data_type].extend((await peer_fetch(
                 client,
-                SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                CHORD_URL,
                 f"api/{table_service_artifact}/private/tables/{table_id}/search",
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
-                auth_header=auth_header,
+                auth_header=auth_header,  # Required to not get a 403 via the private endpoint
                 extra_headers=DATASET_SEARCH_HEADERS
             ))["results"] if table_data_type in data_type_queries else [])
 
@@ -245,14 +245,14 @@ async def run_search_on_dataset(
 
             r = await peer_fetch(
                 client,
-                SOCKET_INTERNAL_URL,  # Use Unix socket resolver
+                CHORD_URL,
                 path_fragment=(
                     f"api/{table_service_artifact}/{'private/' if include_internal_results else ''}"
                     f"tables/{table_id}/search"
                 ),
                 request_body=json.dumps({"query": data_type_queries[table_data_type]}),
                 method="POST",
-                auth_header=auth_header,
+                auth_header=auth_header,  # Required to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
             )
 
