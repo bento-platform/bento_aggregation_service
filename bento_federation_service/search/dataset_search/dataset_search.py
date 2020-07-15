@@ -10,7 +10,7 @@ from tornado.queues import Queue
 from typing import Dict, List, Optional, Set, Tuple
 
 from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
-from bento_federation_service.utils import peer_fetch
+from bento_federation_service.utils import peer_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
 
 
@@ -143,9 +143,7 @@ async def run_search_on_dataset(
 
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
 
-    table_queue = Queue()
-    for table_ownership in dataset["table_ownership"]:
-        table_queue.put_nowait(table_ownership)
+    table_queue = iterable_to_queue(dataset["table_ownership"])
 
     table_definition_workers = tornado.gen.multi([
         _fetch_table_definition_worker(
