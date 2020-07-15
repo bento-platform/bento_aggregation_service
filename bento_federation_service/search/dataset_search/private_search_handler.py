@@ -59,7 +59,6 @@ class PrivateDatasetSearchHandler(RequestHandler):
             }
 
             dataset_results, dataset_join_query, ic_paths_to_filter = await run_search_on_dataset(
-                client,
                 dataset_object_schema,
                 dataset,
                 join_query,

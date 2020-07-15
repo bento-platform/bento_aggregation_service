@@ -129,8 +129,75 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             table_queue.task_done()
 
 
+async def _table_search_worker(
+    table_queue: Queue,
+    dataset_join_query: Query,
+    data_type_queries: Dict[str, Query],
+    include_internal_results: bool,
+    auth_header: Optional[str],
+    dataset_object_schema: dict,
+    dataset_results: Dict[str, list],
+):
+    client = AsyncHTTPClient()
+
+    async for table_pair in table_queue:
+        if table_pair is None:
+            # Exit signal
+            return
+
+        try:
+            table_ownership, table_record = table_pair
+            table_data_type = table_record["data_type"]
+            is_querying_data_type = table_data_type in data_type_queries
+
+            # Don't need to fetch results for joining if the join query is None; just check
+            # individual tables (which is much faster) using the public discovery endpoint.
+            private = dataset_join_query is not None or include_internal_results
+
+            if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
+                # Since we have a join query, we need to create a superstructure containing
+                # different search results and a schema to match.
+
+                # Set schema for data type if needed
+                dataset_object_schema["properties"][table_data_type] = {
+                    "type": "array",
+                    "items": table_record["schema"] if is_querying_data_type else {}
+                }
+
+            # If data type is not being queried, its results are irrelevant
+            if not is_querying_data_type:
+                continue
+
+            r = await peer_fetch(
+                client,
+                CHORD_URL,
+                path_fragment=(
+                    f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
+                    f"/{table_record['id']}/search"
+                ),
+                request_body=json.dumps({"query": data_type_queries[table_data_type]}),
+                method="POST",
+                auth_header=auth_header,  # Required in some cases to not get a 403
+                extra_headers=DATASET_SEARCH_HEADERS,
+            )
+
+            if private:
+                # We have a results array to account for
+                results = r["results"]
+            else:
+                # Here, the array of 1 True is a dummy value to give a positive result
+                results = [r] if r else []
+
+            if table_data_type not in dataset_results:
+                dataset_results[table_data_type] = results
+            else:
+                dataset_results[table_data_type].extend(results)
+
+        finally:
+            table_queue.task_done()
+
+
 async def run_search_on_dataset(
-    client: AsyncHTTPClient,
     dataset_object_schema: dict,
     dataset: dict,
     join_query: Query,
@@ -193,69 +260,40 @@ async def run_search_on_dataset(
 
         print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Generated join query: {dataset_join_query}", flush=True)
 
-    # Trigger exit for all table workers
+    # Trigger exit for all table definition workers
     for _ in range(WORKERS):
         table_queue.put_nowait(None)
 
-    # Wait for workers to exit
+    # Wait for table definition workers to exit
     await table_definition_workers
 
     # -------------------- Start running search on tables --------------------
 
-    dataset_results = {}
+    dataset_results: Dict[str, list] = {}
 
-    for table_ownership, table_record in table_ownerships_and_records:  # TODO: Worker
-        table_id = table_record["id"]
-        table_data_type = table_record["data_type"]
-        table_service_artifact = table_ownership["service_artifact"]
+    table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
-        if table_data_type not in dataset_results:
-            dataset_results[table_data_type] = []
+    table_search_workers = tornado.gen.multi([
+        _table_search_worker(
+            table_pairs_queue,
+            dataset_join_query,
+            data_type_queries,
+            include_internal_results,
+            auth_header,
+            dataset_object_schema,
+            dataset_results,
+        )
+        for _ in range(WORKERS)
+    ])
 
-        if dataset_join_query is not None:  # still isn't None...
-            if table_data_type not in dataset_object_schema["properties"]:
-                # Fetch schema for data type if needed
-                dataset_object_schema["properties"][table_data_type] = {
-                    "type": "array",
-                    "items": table_record["schema"] if table_data_type in data_type_queries else {}
-                }
+    await table_pairs_queue.join()
 
-            dataset_results[table_data_type].extend((await peer_fetch(
-                client,
-                CHORD_URL,
-                f"api/{table_service_artifact}/private/tables/{table_id}/search",
-                request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                method="POST",
-                auth_header=auth_header,  # Required to not get a 403 via the private endpoint
-                extra_headers=DATASET_SEARCH_HEADERS
-            ))["results"] if table_data_type in data_type_queries else [])
+    # Trigger exit for all table search workers
+    for _ in range(WORKERS):
+        table_pairs_queue.put_nowait(None)
 
-        elif table_data_type in data_type_queries:
-            # Don't need to fetch results for joining if the join query is None; just check
-            # individual tables (which is much faster) using the public discovery endpoint.
-
-            r = await peer_fetch(
-                client,
-                CHORD_URL,
-                path_fragment=(
-                    f"api/{table_service_artifact}/{'private/' if include_internal_results else ''}"
-                    f"tables/{table_id}/search"
-                ),
-                request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                method="POST",
-                auth_header=auth_header,  # Required to not get a 403
-                extra_headers=DATASET_SEARCH_HEADERS,
-            )
-
-            if not include_internal_results:
-                # Here, the array of 1 True is a dummy value to give a positive result
-                r = [r] if r else []
-            else:
-                # We have a results array to account for
-                r = r["results"]
-
-            if len(r) > 0:  # True return value, i.e. the query matched something
-                dataset_results[table_data_type].extend(r)
+    # Wait for table search workers to exit
+    await table_search_workers
 
     # Return dataset-level results to calculate final result from
     # Return dataset join query for later use (when generating results)

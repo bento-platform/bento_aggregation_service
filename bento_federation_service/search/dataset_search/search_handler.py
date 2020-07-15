@@ -50,8 +50,6 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         dataset_objects_dict: dict,
         dataset_join_queries: dict,
     ):
-        client = AsyncHTTPClient()
-
         async for dataset in dataset_queue:
             if dataset is None:
                 # Exit signal
@@ -61,7 +59,6 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 dataset_id = dataset["identifier"]
 
                 dataset_results, dataset_join_query, _ = await run_search_on_dataset(
-                    client,
                     dataset_object_schema,
                     dataset,
                     join_query,
