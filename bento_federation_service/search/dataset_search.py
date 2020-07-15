@@ -16,7 +16,7 @@ from tornado.web import RequestHandler
 
 from typing import Any, Dict, Iterable as TypingIterable, List, Optional, Set, Tuple
 
-from ..constants import CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
+from ..constants import CHORD_URL, CHORD_HOST, MAX_BUFFER_SIZE, SERVICE_NAME, SOCKET_INTERNAL_URL, WORKERS
 from ..utils import peer_fetch, ServiceSocketResolver, get_request_json, get_auth_header
 
 
@@ -554,7 +554,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
 
             projects = await peer_fetch(
                 client,
-                SOCKET_INTERNAL_URL,
+                CHORD_URL,
                 "api/metadata/api/projects",
                 method="GET",
                 auth_header=auth_header,
@@ -667,7 +667,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
 
             dataset = await peer_fetch(
                 client,
-                SOCKET_INTERNAL_URL,
+                CHORD_URL,
                 f"api/metadata/api/datasets/{dataset_id}",
                 method="GET",
                 auth_header=auth_header,
