@@ -3,8 +3,8 @@ attrs==19.3.0
 bento-lib==0.11.0
 certifi==2020.6.20
 chardet==3.0.4
-codecov==2.1.7
-coverage==5.2
+codecov==2.1.8
+coverage==5.2.1
 distlib==0.3.1
 filelock==3.0.12
 flake8==3.8.3
@@ -26,8 +26,8 @@ requests==2.24.0
 six==1.15.0
 toml==0.10.1
 tornado==6.0.4
-tox==3.16.1
-urllib3==1.25.9
-virtualenv==20.0.26
+tox==3.19.0
+urllib3==1.25.10
+virtualenv==20.0.30
 Werkzeug==1.0.1
 zipp==3.1.0
