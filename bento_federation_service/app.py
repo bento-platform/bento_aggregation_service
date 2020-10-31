@@ -82,6 +82,9 @@ class Application(tornado.web.Application):
             url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
         ] + ([
             # TODO: Maybe these should be their own service
+            #  If the services were split apart, the FEDERATION_MODE flag could
+            #  be traded out for instead just not including the federation
+            #  service, on the backend side?
             url(f"{base_path}/peers", PeerHandler, args_full),
             url(f"{base_path}/private/peers/refresh", PeerRefreshHandler, args_pm),
             url(f"{base_path}/federated-dataset-search", FederatedDatasetsSearchHandler, args_pm),
