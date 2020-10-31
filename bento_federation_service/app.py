@@ -9,6 +9,7 @@ from tornado.netutil import bind_unix_socket
 from tornado.web import RequestHandler, url
 
 from .constants import (
+    BENTO_FEDERATION_MODE,
     SERVICE_ID,
     SERVICE_TYPE,
     SERVICE_NAME,
@@ -45,7 +46,8 @@ class ServiceInfoHandler(RequestHandler):
 
 
 async def post_start_hook(peer_manager: PeerManager):
-    await peer_manager.get_peers()
+    if BENTO_FEDERATION_MODE:
+        await peer_manager.get_peers()
     print(f"[{SERVICE_NAME} {datetime.utcnow()}] Post-start hook finished", flush=True)
 
 
@@ -76,13 +78,15 @@ class Application(tornado.web.Application):
         super().__init__([
             url(f"{base_path}/service-info", ServiceInfoHandler),
             url(f"{base_path}/private/post-start-hook", PostStartHookHandler, args_pm),
-            url(f"{base_path}/peers", PeerHandler, args_full),
-            url(f"{base_path}/private/peers/refresh", PeerRefreshHandler, args_pm),
             url(f"{base_path}/dataset-search", DatasetsSearchHandler),
             url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
+        ] + ([
+            # TODO: Maybe these should be their own service
+            url(f"{base_path}/peers", PeerHandler, args_full),
+            url(f"{base_path}/private/peers/refresh", PeerRefreshHandler, args_pm),
             url(f"{base_path}/federated-dataset-search", FederatedDatasetsSearchHandler, args_pm),
             url(f"{base_path}/search-aggregate/([a-zA-Z0-9\\-_/]+)", SearchHandler, args_pm),
-        ])
+        ] if BENTO_FEDERATION_MODE else []))
 
         if INITIALIZE_IMMEDIATELY:
             tornado.ioloop.IOLoop.current().spawn_callback(post_start_hook, self.peer_manager)

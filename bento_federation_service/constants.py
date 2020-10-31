@@ -7,6 +7,7 @@ from . import __version__
 __all__ = [
     "BASE_PATH",
     "CHORD_DEBUG",
+    "BENTO_FEDERATION_MODE",
     "CHORD_URL",
     "CHORD_HOST",
     "CHORD_REGISTRY_URL",
@@ -41,6 +42,7 @@ def _env_to_bool(var: str, default: bool = False) -> bool:
 
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
 CHORD_DEBUG = _env_to_bool("CHORD_DEBUG")
+BENTO_FEDERATION_MODE = _env_to_bool("BENTO_FEDERATION_MODE", default=True)
 CHORD_URL = os.environ.get("CHORD_URL", "").strip()
 CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
 CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"

@@ -8,6 +8,8 @@ A service for federated search between Bento platform nodes.
 
 `CHORD_DEBUG`: `true` (insecure) or `false`; default is `false`
 
+`BENTO_FEDERATION_MODE`: `true` or `false`; default is `true`
+
 `CHORD_URL`: ex. `http://127.0.0.1:5000/`
 
 `CHORD_REGISTRY_URL`: ex. `http://127.0.0.1:5000/`
