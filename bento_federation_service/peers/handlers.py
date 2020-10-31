@@ -92,7 +92,7 @@ class PeerHandler(RequestHandler):
                         method="GET"
                     )
 
-                    # TODO: Check semver for compatibility
+                    # TODO: Check semver or some 'protocol version' for compatibility
                     # TODO: Check JSON schema
                     if r["type"].startswith(f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}"):
                         # Peer two-way communication is possible

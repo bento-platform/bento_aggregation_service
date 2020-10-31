@@ -15,7 +15,7 @@ setuptools.setup(
     version=config["package"]["version"],
 
     python_requires=">=3.6",
-    install_requires=["bento_lib==0.11.0", "tornado>=6.0.4,<6.1"],
+    install_requires=["bento_lib==0.11.0", "tornado>=6.1,<6.2"],
 
     author=config["package"]["authors"],
     author_email=config["package"]["author_emails"],
