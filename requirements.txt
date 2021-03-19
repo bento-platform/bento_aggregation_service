@@ -27,7 +27,7 @@ six==1.15.0
 toml==0.10.2
 tornado==6.1
 tox==3.21.0
-urllib3==1.26.2
+urllib3==1.26.3
 virtualenv==20.3.0
 Werkzeug==1.0.1
 zipp==3.4.0
