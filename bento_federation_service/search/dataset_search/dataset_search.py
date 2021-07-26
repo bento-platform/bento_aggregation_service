@@ -40,6 +40,7 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
 
 def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
     if len(linked_field_sets) == 0:
+        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] No useful linked field sets present", flush=True)
         return None
 
     # TODO: This blows up combinatorially, oh well.
@@ -47,6 +48,7 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
                   if p[0][0] in data_type_set and p[1][0] in data_type_set)
 
     if len(pairs) == 0:
+        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] No useful ID pairs present", flush=True)
         return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
 
     if len(linked_field_sets) == 1:
