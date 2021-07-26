@@ -69,8 +69,9 @@ DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.
 
 SERVICE_ORGANIZATION = "ca.c3g.bento"
 SERVICE_ARTIFACT = "federation"
-SERVICE_TYPE = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}:{__version__}"
-SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)
+SERVICE_TYPE_NO_VERSION = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}"
+SERVICE_TYPE = f"{SERVICE_TYPE_NO_VERSION}:{__version__}"
+SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE_NO_VERSION)
 SERVICE_NAME = "Bento Federation Service"
 
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
