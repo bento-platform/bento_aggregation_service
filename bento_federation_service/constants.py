@@ -40,12 +40,29 @@ def _env_to_bool(var: str, default: bool = False) -> bool:
     return os.environ.get(var, str(default)).strip().lower() == "true"
 
 
+def _env_url_trailing_slash(var: str) -> str:
+    """
+    Hack in a ubiquitous trailing slash by appending it to an rstripped version
+    and lstripping the / to remove it if the URL is blank.
+    :param var: The environment variable for the URL value
+    :return: A trailing-slash-guaranteed version, or blank.
+    """
+    return (os.environ.get(var, "").strip().rstrip("/") + "/").lstrip("/")
+
+
+# Should usually be blank; set to non-blank to locally emulate a proxy prefix
+# like /api/federation
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
+
 CHORD_DEBUG = _env_to_bool("CHORD_DEBUG")
 BENTO_FEDERATION_MODE = _env_to_bool("BENTO_FEDERATION_MODE", default=True)
-CHORD_URL = os.environ.get("CHORD_URL", "").strip()
+
+# Set CHORD_URL and CHORD_REGISTRY_URL to environment values, or blank if not
+# available.
+CHORD_URL = _env_url_trailing_slash("CHORD_URL")
+CHORD_REGISTRY_URL = _env_url_trailing_slash("CHORD_REGISTRY_URL")
+
 CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
-CHORD_REGISTRY_URL = os.environ.get("CHORD_REGISTRY_URL", "")  # "http://1.chord.dlougheed.com/"
 OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
