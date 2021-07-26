@@ -78,7 +78,7 @@ SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 
 INITIALIZE_IMMEDIATELY = _env_to_bool("INITIALIZE_IMMEDIATELY", default=True)
 
-CHORD_URLS_SET = CHORD_URL.strip() != "" and CHORD_REGISTRY_URL.strip() != ""
+CHORD_URLS_SET = CHORD_URL != "" and CHORD_REGISTRY_URL != ""
 
 TIMEOUT = 180  # seconds
 LAST_ERRORED_CACHE_TIME = 30
