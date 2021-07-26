@@ -33,4 +33,7 @@ By convention *should not* have a trailing slash.
 
 `SERVICE_URL_BASE_PATH`: Base URL fragment (e.g. `/test/`) for endpoints
 
+Should usually be blank; set to non-blank to locally emulate a proxy prefix
+like `/api/federation`.
+
 `SOCKET`: Specifies Unix socket location for production deployment
