@@ -1,7 +1,7 @@
 appdirs==1.4.4
 attrs==21.2.0
 backports.entry-points-selectable==1.1.0
-bento-lib==2.2.1
+bento-lib==3.0.0
 certifi==2021.5.30
 chardet==4.0.0
 codecov==2.1.11
@@ -31,5 +31,5 @@ tornado==6.1
 tox==3.24.0
 urllib3==1.26.6
 virtualenv==20.6.0
-Werkzeug==1.0.1
+Werkzeug==2.0.1
 zipp==3.5.0
