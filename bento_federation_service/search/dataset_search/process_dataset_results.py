@@ -5,7 +5,7 @@ from datetime import datetime
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from bento_federation_service.constants import SERVICE_NAME
+from bento_federation_service.constants import CHORD_DEBUG, SERVICE_NAME
 
 
 __all__ = [
@@ -186,7 +186,8 @@ def process_dataset_results(
     ic = None
     if join_query_ast is not None:
         ic = check_ast_against_data_structure(join_query_ast, dataset_results, dataset_object_schema,
-                                              internal=True, return_all_index_combinations=include_internal_data)
+                                              internal=True, return_all_index_combinations=include_internal_data,
+                                              secure_errors=not CHORD_DEBUG)
         if isinstance(ic, Iterable):
             ic = tuple(ic)
 
