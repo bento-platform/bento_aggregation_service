@@ -241,6 +241,7 @@ async def run_search_on_dataset(
     dataset: dict,
     join_query: Query,
     data_type_queries: Dict[str, Query],
+    exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
 ) -> Tuple[Dict[str, list], Query, List[str]]:
@@ -260,7 +261,12 @@ async def run_search_on_dataset(
 
     try:
         table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
-        excluded_data_types: Set[str] = set()
+
+        # Set of data types excluded from building the join query
+        # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
+        #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
+        #   to match
+        excluded_data_types: Set[str] = set(exclude_from_auto_join)
 
         for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
             # If there are no tables of a particular data type, we don't get the schema. If this

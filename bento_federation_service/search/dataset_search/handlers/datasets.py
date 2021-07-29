@@ -9,7 +9,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
 from bento_federation_service.utils import peer_fetch, get_auth_header
@@ -44,6 +44,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         dataset_object_schema: dict,
         join_query,
         data_type_queries,
+        exclude_from_auto_join: Tuple[str, ...],
         auth_header: Optional[str],
 
         # Output references
@@ -63,6 +64,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                     dataset,
                     join_query,
                     data_type_queries,
+                    exclude_from_auto_join,
                     cls.include_internal_results,
                     auth_header,
                 )
@@ -85,7 +87,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         await self.finish()
 
     async def post(self):
-        data_type_queries, join_query = get_query_parts(self.request.body)
+        data_type_queries, join_query, exclude_from_auto_join = get_query_parts(self.request.body)
         if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
@@ -136,6 +138,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                     dataset_object_schema,
                     join_query,
                     data_type_queries,
+                    exclude_from_auto_join,
                     auth_header,
 
                     dataset_objects_dict,
