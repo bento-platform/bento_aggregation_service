@@ -51,8 +51,10 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
     # This does not deduplicate pairs if there are overlaps between the linked
     # field sets, so a little bit of extra work might be performed.
 
+    # Just take the first linked field set, since we are recursing later.
+
     pairs = tuple(
-        p for lfs in linked_field_sets for p in itertools.combinations(lfs.items(), 2)
+        p for p in itertools.combinations(linked_field_sets[0].items(), 2)
         if p[0][0] in data_type_set and p[1][0] in data_type_set)
 
     if len(pairs) == 0:
@@ -61,6 +63,8 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
 
     if len(linked_field_sets) == 1:
         return _linked_field_set_to_join_query_rec(pairs)
+
+    # Recurse on the next linked field set, building up the #and query.
 
     return ["#and",
             _linked_field_set_to_join_query_rec(pairs),
