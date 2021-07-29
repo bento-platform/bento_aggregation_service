@@ -268,6 +268,10 @@ async def run_search_on_dataset(
         #   to match
         excluded_data_types: Set[str] = set(exclude_from_auto_join)
 
+        if excluded_data_types:
+            print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Pre-excluding data types from join: "
+                  f"{excluded_data_types}", flush=True)
+
         for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
             # If there are no tables of a particular data type, we don't get the schema. If this
             # happens, return no results unless the query is hard-coded to be True, in which
@@ -284,7 +288,7 @@ async def run_search_on_dataset(
             dataset_object_schema["properties"][dt] = {"type": "array"}
             excluded_data_types.add(dt)
 
-            print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type: {dt}", flush=True)
+            print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type from join: {dt}", flush=True)
 
         if join_query is None:
             # Could re-return None; pass set of all data types (keys of the data type queries)
