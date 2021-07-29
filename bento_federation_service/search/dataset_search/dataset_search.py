@@ -26,6 +26,13 @@ LinkedFieldSetList = List[DictOfDataTypesAndFields]
 
 
 def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField) -> Query:
+    """
+    Given two tuples of (data type, field path) representing the fields to join on,
+    return an equality expression for the fields.
+    :param field_1: The first field definition to join on.
+    :param field_2: The second field definition to join on.
+    :return: The constructed join equality expression.
+    """
     return ["#eq", ["#resolve", field_1[0], "[item]", *field_1[1]], ["#resolve", field_2[0], "[item]", *field_2[1]]]
 
 
