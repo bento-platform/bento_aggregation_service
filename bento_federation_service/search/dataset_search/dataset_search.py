@@ -214,8 +214,8 @@ async def _table_search_worker(
                     f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
                     f"/{table_record['id']}/search"
                 ),
-                request_body=json.dumps({"query": data_type_queries[table_data_type]}),
-                method="POST",
+                url_args=(("query", json.dumps(data_type_queries[table_data_type])),),
+                method="GET",
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
             )

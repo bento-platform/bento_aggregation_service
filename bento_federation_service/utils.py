@@ -1,8 +1,9 @@
 import json
 
+from tornado.escape import url_escape
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from .constants import CHORD_DEBUG, SERVICE_NAME, TIMEOUT
@@ -20,7 +21,8 @@ RequestBody = Optional[Union[bytes, str]]
 
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: RequestBody = None,
-                     method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None):
+                     method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None,
+                     url_args: Tuple[Tuple[str, str]] = ()):
     if CHORD_DEBUG:
         print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
 
@@ -28,8 +30,12 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         # Convert str to bytes with only accepted charset: UTF-8
         request_body = request_body.encode("UTF-8")
 
+    arg_str = ""
+    if url_args:
+        arg_str = "?" + "&".join(f"{k}={url_escape(v)}" for k, v in url_args)
+
     r = await client.fetch(
-        urljoin(peer, path_fragment),
+        urljoin(peer, path_fragment) + arg_str,
         request_timeout=TIMEOUT,
         method=method,
         body=request_body,
