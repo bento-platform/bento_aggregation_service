@@ -14,5 +14,7 @@ class FederatedDatasetsSearchHandler(RequestHandler):
         self.set_status(204)
         await self.finish()
 
+    # TODO: Implement federated GET search
+
     async def post(self):
         await perform_search(self, "federation/dataset-search", "POST", dataset_search=True)

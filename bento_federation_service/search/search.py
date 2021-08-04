@@ -52,6 +52,8 @@ async def _search_worker(peer_queue: Queue, search_path: str, request_body: Opti
 
 
 async def perform_search(handler: RequestHandler, search_path: str, method: str, dataset_search: bool = False):
+    # TODO: Implement federated GET search
+
     request = get_request_json(handler.request.body)
 
     if request is None or (dataset_search and "data_type_queries" not in request or "join_query" not in request):
