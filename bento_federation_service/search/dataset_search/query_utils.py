@@ -10,10 +10,11 @@ __all__ = [
 ]
 
 
-def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query], Tuple[str, ...]]:
+def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query],
+                                                  Tuple[str, ...], Tuple[str, ...]]:
     request = get_request_json(request_body)
     if request is None:
-        return None, None, ()
+        return None, None, (), ()
 
     # Format: {"data_type": ["#eq", ...]}
     data_type_queries: Optional[Dict[str, Query]] = request.get("data_type_queries")
@@ -24,7 +25,11 @@ def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Op
     # Format: list of data types to use as part of a full-join-ish thing instead of an inner-join-ish thing
     exclude_from_auto_join: Tuple[str] = request.get("exclude_from_auto_join", ())
 
-    return data_type_queries, join_query, exclude_from_auto_join
+    # Format: list of fields to return in response
+    # e.g. {"fields": ["id", "subject", "biosamples", "diseases"]}
+    fields: Tuple[str] = request.get("fields")
+
+    return data_type_queries, join_query, exclude_from_auto_join, fields
 
 
 def test_queries(queries: Iterable[Query]) -> None:
