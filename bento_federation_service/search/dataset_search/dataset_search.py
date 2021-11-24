@@ -172,6 +172,7 @@ async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
     data_type_queries: Dict[str, Query],
+    fields: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str],
     dataset_object_schema: dict,
@@ -208,6 +209,9 @@ async def _table_search_worker(
                 continue
 
             r = await peer_fetch(
+
+                #TODO: add fields somewhere
+
                 client,
                 CHORD_URL,
                 path_fragment=(
@@ -241,6 +245,7 @@ async def run_search_on_dataset(
     dataset: dict,
     join_query: Query,
     data_type_queries: Dict[str, Query],
+    fields: Tuple[str, ...],
     exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
@@ -323,6 +328,7 @@ async def run_search_on_dataset(
             table_pairs_queue,
             join_query,
             data_type_queries,
+            fields,
             include_internal_results,
             auth_header,
             dataset_object_schema,
