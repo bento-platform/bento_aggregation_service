@@ -329,11 +329,11 @@ async def run_search_on_dataset(
             table_pairs_queue,
             join_query,
             data_type_queries,
-            fields,
             include_internal_results,
             auth_header,
             dataset_object_schema,
             dataset_results,
+            fields,
         )
         for _ in range(WORKERS)
     ])
