@@ -3,7 +3,7 @@ import json
 from tornado.escape import url_escape
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
-from typing import Iterable, Optional, Tuple, Union
+from typing import Iterable, Optional, Tuple, Union, Any
 from urllib.parse import urljoin
 
 from .constants import CHORD_DEBUG, SERVICE_NAME, TIMEOUT
@@ -22,7 +22,7 @@ RequestBody = Optional[Union[bytes, str]]
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: RequestBody = None,
                      method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None,
-                     url_args: Tuple[Tuple[str, str]] = ()):
+                     url_args: Tuple[Tuple[str, str], Tuple[str, Any]] = ()):
     if CHORD_DEBUG:
         print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
 

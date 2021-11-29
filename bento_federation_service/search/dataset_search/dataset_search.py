@@ -172,11 +172,11 @@ async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
     data_type_queries: Dict[str, Query],
-    fields: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str],
     dataset_object_schema: dict,
     dataset_results: Dict[str, list],
+    fields: Tuple[str, ...] = None,
 ):
     client = AsyncHTTPClient()
 
@@ -218,7 +218,8 @@ async def _table_search_worker(
                     f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
                     f"/{table_record['id']}/search"
                 ),
-                url_args=(("query", json.dumps(data_type_queries[table_data_type])),),
+                url_args=(("query", json.dumps(data_type_queries[table_data_type])),
+                          ("fields", fields),),
                 method="GET",
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
