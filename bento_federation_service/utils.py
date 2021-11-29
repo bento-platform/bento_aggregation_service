@@ -32,6 +32,7 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
 
     arg_str = ""
     if url_args:
+        print(url_args)
         arg_str = "?" + "&".join(f"{k}={url_escape(v)}" for k, v in url_args)
 
     r = await client.fetch(
@@ -46,6 +47,7 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         },
         raise_error=True
     )
+    print(r)
 
     return json.loads(r.body) if r.code != 204 else None
 
