@@ -50,6 +50,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         # Output references
         dataset_objects_dict: dict,
         dataset_join_queries: dict,
+
+        fields: Tuple[str, ...] = None,
     ):
         async for dataset in dataset_queue:
             if dataset is None:
@@ -67,6 +69,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                     exclude_from_auto_join,
                     cls.include_internal_results,
                     auth_header,
+                    fields
                 )
 
                 dataset_objects_dict[dataset_id] = dataset_results
@@ -87,7 +90,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         await self.finish()
 
     async def post(self):
-        data_type_queries, join_query, exclude_from_auto_join = get_query_parts(self.request.body)
+        data_type_queries, join_query, exclude_from_auto_join, fields = get_query_parts(self.request.body)
         if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))

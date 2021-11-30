@@ -246,10 +246,10 @@ async def run_search_on_dataset(
     dataset: dict,
     join_query: Query,
     data_type_queries: Dict[str, Query],
-    fields: Tuple[str, ...],
     exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
+    fields: Tuple[str, ...] = None,
 ) -> Tuple[Dict[str, list], Query, List[str]]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
 

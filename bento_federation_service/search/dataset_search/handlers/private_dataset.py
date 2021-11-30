@@ -64,10 +64,10 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 dataset,
                 join_query,
                 data_type_queries,
-                fields,
                 exclude_from_auto_join,
                 self.include_internal_results,
                 auth_header,
+                fields,
             )
 
             self.write(next(process_dataset_results(
