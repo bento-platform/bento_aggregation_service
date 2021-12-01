@@ -153,16 +153,31 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             return
 
         try:
-            # TODO: Don't fetch schema except for first time?
-            table_ownerships_and_records.append((t, await peer_fetch(
-                client,
-                CHORD_URL,
-                f"api/{t['service_artifact']}/tables/{t['table_id']}",
-                method="GET",
-                auth_header=auth_header,  # Required, otherwise may hit a 403 error
-                extra_headers=DATASET_SEARCH_HEADERS
-            )))
-            # TODO: Handle HTTP errors
+            # TEMP: Gohan compatibility
+            if t['service_artifact'] == "variant":
+                # construct gohan query parameters
+                url_args = () # TODO: populate
+                # call gohan
+                table_ownerships_and_records.append((t, await peer_fetch(
+                    client,
+                    CHORD_URL,
+                    f"api/gohan/variants/get/by/variantId?assemblyId=GRCh37",
+                    method="GET",
+                    auth_header=auth_header,  # Required, otherwise may hit a 403 error
+                    extra_headers=DATASET_SEARCH_HEADERS,
+                    url_args=url_args
+                )))
+            else:
+                # TODO: Don't fetch schema except for first time?
+                table_ownerships_and_records.append((t, await peer_fetch(
+                    client,
+                    CHORD_URL,
+                    f"api/{t['service_artifact']}/tables/{t['table_id']}",
+                    method="GET",
+                    auth_header=auth_header,  # Required, otherwise may hit a 403 error
+                    extra_headers=DATASET_SEARCH_HEADERS
+                )))
+                # TODO: Handle HTTP errors
 
         finally:
             table_queue.task_done()
