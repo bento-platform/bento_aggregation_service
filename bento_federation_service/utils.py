@@ -38,7 +38,7 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
         urljoin(peer, path_fragment) + arg_str,
         request_timeout=TIMEOUT,
         method=method,
-        body=request_body,
+        body=request_body,validate_cert=(not CHORD_DEBUG),
         headers={
             **({} if request_body is None else {"Content-Type": "application/json; charset=UTF-8"}),
             **({"Authorization": auth_header} if auth_header else {}),
