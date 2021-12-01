@@ -219,7 +219,7 @@ async def _table_search_worker(
                     f"/{table_record['id']}/search"
                 ),
                 url_args=(("query", json.dumps(data_type_queries[table_data_type])),
-                          ("fields", json.dumps(fields)),),
+                          ("fields", json.dumps(",".join(fields))),),
                 method="GET",
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
