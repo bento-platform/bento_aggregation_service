@@ -10,6 +10,7 @@ from tornado.queues import Queue
 from typing import Dict, List, Optional, Set, Tuple
 
 from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
+from bento_federation_service.search.dataset_search import query_utils
 from bento_federation_service.utils import peer_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
 
@@ -153,31 +154,24 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             return
 
         try:
-            # TEMP: Gohan compatibility
-            if t['service_artifact'] == "variant":
-                # construct gohan query parameters
-                url_args = () # TODO: populate
-                # call gohan
-                table_ownerships_and_records.append((t, await peer_fetch(
-                    client,
-                    CHORD_URL,
-                    f"api/gohan/variants/get/by/variantId?assemblyId=GRCh37",
-                    method="GET",
-                    auth_header=auth_header,  # Required, otherwise may hit a 403 error
-                    extra_headers=DATASET_SEARCH_HEADERS,
-                    url_args=url_args
-                )))
+            # TEMP: Gohan compatibility testing
+            if t['service_artifact'] != "variant":
+                url = f"api/{t['service_artifact']}/tables/{t['table_id']}"
             else:
-                # TODO: Don't fetch schema except for first time?
-                table_ownerships_and_records.append((t, await peer_fetch(
-                    client,
-                    CHORD_URL,
-                    f"api/{t['service_artifact']}/tables/{t['table_id']}",
-                    method="GET",
-                    auth_header=auth_header,  # Required, otherwise may hit a 403 error
-                    extra_headers=DATASET_SEARCH_HEADERS
-                )))
-                # TODO: Handle HTTP errors
+                url = f"api/gohan/tables/fake"
+
+            print("url: " + url)
+            
+            #TODO: Don't fetch schema except for first time?
+            table_ownerships_and_records.append((t, await peer_fetch(
+                client,
+                CHORD_URL,
+                url,
+                method="GET",
+                auth_header=auth_header,  # Required, otherwise may hit a 403 error
+                extra_headers=DATASET_SEARCH_HEADERS
+            )))
+            # TODO: Handle HTTP errors
 
         finally:
             table_queue.task_done()
@@ -222,18 +216,44 @@ async def _table_search_worker(
             if not is_querying_data_type:
                 continue
 
-            r = await peer_fetch(
-                client,
-                CHORD_URL,
+            # -- TEMP: Gohan compatibility testing
+            if table_ownership['service_artifact'] != "variant":
                 path_fragment=(
                     f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
                     f"/{table_record['id']}/search"
-                ),
-                url_args=(("query", json.dumps(data_type_queries[table_data_type])),),
+                )
+                url_args = (("query", json.dumps(data_type_queries[table_data_type])),)
+            else:
+                path_fragment = (f"api/gohan/variants/get/by/variantId")
+                # --- TEMP:
+                # construct based on search query
+                supplemental_url_args = [["getSampleIdsOnly", "true"]]
+
+                # - transform custom Query to list of lists to simplify
+                #   the gohan query parameter construction
+                tmpjson=json.dumps({"tmpkey":data_type_queries[table_data_type]})
+                reloaded_converted=json.loads(tmpjson)["tmpkey"]
+
+                # - generate query parameters from list of query tree objects
+                gohan_query_params = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
+
+                print(f"gohan_query_params: {gohan_query_params}")
+                url_args=gohan_query_params
+                #
+            #
+
+
+            r = await peer_fetch(
+                client,
+                CHORD_URL,
+                path_fragment=path_fragment,
+                url_args=url_args,
                 method="GET",
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
             )
+
+            #print(f"Response: {r}")
 
             if private:
                 # We have a results array to account for
@@ -262,6 +282,9 @@ async def run_search_on_dataset(
 ) -> Tuple[Dict[str, list], Query, List[str]]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
 
+    # print(f"Linked Field Sets: {linked_field_sets}")
+    # print(f"Dataset: {dataset}")
+
     # Pairs of table ownership records, from the metadata service, and table records,
     # from each data service to which the table belongs)
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
@@ -275,6 +298,8 @@ async def run_search_on_dataset(
     await table_ownership_queue.join()
 
     try:
+        # print(f"table_ownerships_and_records: {table_ownerships_and_records}")
+
         table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
 
         # Set of data types excluded from building the join query
