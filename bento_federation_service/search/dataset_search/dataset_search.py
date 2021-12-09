@@ -257,8 +257,6 @@ async def _table_search_worker(
                 extra_headers=DATASET_SEARCH_HEADERS,
             )
 
-            # if "gohan" in path_fragment:
-            #     print(f"Response: {r}")
 
             if private:
                 # We have a results array to account for
