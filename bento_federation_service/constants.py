@@ -80,6 +80,8 @@ INITIALIZE_IMMEDIATELY = _env_to_bool("INITIALIZE_IMMEDIATELY", default=True)
 
 CHORD_URLS_SET = CHORD_URL != "" and CHORD_REGISTRY_URL != ""
 
+USE_GOHAN = _env_to_bool("USE_GOHAN")
+
 TIMEOUT = 180  # seconds
 LAST_ERRORED_CACHE_TIME = 30
 MAX_BUFFER_SIZE = 1024 ** 3  # 1 gigabyte; maximum size a response can be
