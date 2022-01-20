@@ -9,7 +9,7 @@ from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
 from bento_federation_service.utils import peer_fetch, get_auth_header
@@ -45,13 +45,12 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         join_query,
         data_type_queries,
         exclude_from_auto_join: Tuple[str, ...],
+        data_type_args: Dict[str, Dict[str, Any]],
         auth_header: Optional[str],
 
         # Output references
         dataset_objects_dict: dict,
         dataset_join_queries: dict,
-
-        fields: Tuple[str, ...] = None,
     ):
         async for dataset in dataset_queue:
             if dataset is None:
@@ -68,8 +67,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                     data_type_queries,
                     exclude_from_auto_join,
                     cls.include_internal_results,
+                    data_type_args,
                     auth_header,
-                    fields
                 )
 
                 dataset_objects_dict[dataset_id] = dataset_results
@@ -90,7 +89,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         await self.finish()
 
     async def post(self):
-        data_type_queries, join_query, exclude_from_auto_join, fields = get_query_parts(self.request.body)
+        data_type_queries, join_query, exclude_from_auto_join, data_type_args = get_query_parts(self.request.body)
         if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
@@ -142,6 +141,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                     join_query,
                     data_type_queries,
                     exclude_from_auto_join,
+                    data_type_args,
                     auth_header,
 
                     dataset_objects_dict,

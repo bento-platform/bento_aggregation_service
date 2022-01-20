@@ -29,7 +29,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
         await self.finish()
 
     async def post(self, dataset_id: str):
-        data_type_queries, join_query, exclude_from_auto_join, fields = get_query_parts(self.request.body)
+        data_type_queries, join_query, exclude_from_auto_join, data_type_args = get_query_parts(self.request.body)
         if not data_type_queries:
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
@@ -66,8 +66,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 data_type_queries,
                 exclude_from_auto_join,
                 self.include_internal_results,
+                data_type_args,
                 auth_header,
-                fields,
             )
 
             self.write(next(process_dataset_results(

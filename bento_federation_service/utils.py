@@ -22,7 +22,7 @@ RequestBody = Optional[Union[bytes, str]]
 
 async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, request_body: RequestBody = None,
                      method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None,
-                     url_args: Tuple[Tuple[str, str], Tuple[str, Any]] = ()):
+                     url_args: Tuple[Tuple[str, Any], ...] = ()):
     if CHORD_DEBUG:
         print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(peer, path_fragment)}: {request_body}", flush=True)
 
@@ -32,7 +32,7 @@ async def peer_fetch(client: AsyncHTTPClient, peer: str, path_fragment: str, req
 
     arg_str = ""
     if url_args:
-        print(url_args)
+        print("URL args:", url_args)
         arg_str = "?" + "&".join(f"{k}={url_escape(v)}" for k, v in url_args)
 
     r = await client.fetch(

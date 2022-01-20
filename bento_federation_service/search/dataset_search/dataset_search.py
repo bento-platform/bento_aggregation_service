@@ -7,7 +7,7 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
 from bento_federation_service.utils import peer_fetch, iterable_to_queue
@@ -173,10 +173,10 @@ async def _table_search_worker(
     dataset_join_query: Query,
     data_type_queries: Dict[str, Query],
     include_internal_results: bool,
+    data_type_args: Dict[str, Dict[str, Any]],
     auth_header: Optional[str],
     dataset_object_schema: dict,
     dataset_results: Dict[str, list],
-    fields: Tuple[str, ...] = None,
 ):
     client = AsyncHTTPClient()
 
@@ -208,18 +208,26 @@ async def _table_search_worker(
             if not is_querying_data_type:
                 continue
 
+            # Process specific URL params for each data type query
+            url_args = [("query", json.dumps(data_type_queries[table_data_type]))]
+            params_to_add = data_type_args.get(table_data_type, {})
+            for k, v in params_to_add.items():
+                # Process value depending on field name / what it is
+                if k == "fields":  # Fields list for katsu
+                    v = ",".join(v)
+                else:
+                    v = str(v)
+
+                url_args.append((k, v))
+
             r = await peer_fetch(
-
-                #TODO: add fields somewhere
-
                 client,
                 CHORD_URL,
                 path_fragment=(
                     f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
                     f"/{table_record['id']}/search"
                 ),
-                url_args=(("query", json.dumps(data_type_queries[table_data_type])),
-                          ("fields", json.dumps(",".join(fields))),),
+                url_args=tuple(url_args),
                 method="GET",
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
@@ -248,8 +256,8 @@ async def run_search_on_dataset(
     data_type_queries: Dict[str, Query],
     exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
+    data_type_args: Dict[str, Dict[str, Any]],
     auth_header: Optional[str] = None,
-    fields: Tuple[str, ...] = None,
 ) -> Tuple[Dict[str, list], Query, List[str]]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
 
@@ -330,10 +338,10 @@ async def run_search_on_dataset(
             join_query,
             data_type_queries,
             include_internal_results,
+            data_type_args,
             auth_header,
             dataset_object_schema,
             dataset_results,
-            fields,
         )
         for _ in range(WORKERS)
     ])
