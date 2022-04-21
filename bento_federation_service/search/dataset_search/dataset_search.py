@@ -230,7 +230,7 @@ async def _table_search_worker(
 
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            if USE_GOHAN and table_ownership['service_artifact'] == "variant":
+            if USE_GOHAN and table_ownership['service_artifact'] == "gohan":
                 # reset path_fragment:
                 path_fragment = (f"api/gohan/variants/get/by/variantId")
 
