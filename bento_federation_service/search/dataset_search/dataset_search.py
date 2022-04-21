@@ -161,7 +161,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             # - Gohan compatibility
             # TODO: formalize/clean this up
             if USE_GOHAN and t['service_artifact'] == "variant":
-                url = f"api/gohan/tables/fake"
+                url = f"api/gohan/tables/{t['table_id']}"
 
             print("url: " + url)
             
@@ -230,7 +230,7 @@ async def _table_search_worker(
 
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            if USE_GOHAN and table_ownership['service_artifact'] == "variant":
+            if USE_GOHAN and table_ownership['service_artifact'] == "gohan":
                 # reset path_fragment:
                 path_fragment = (f"api/gohan/variants/get/by/variantId")
 
