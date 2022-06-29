@@ -11,5 +11,5 @@ if __name__ == "__main__":
         print(f"[{SERVICE_NAME}] No CHORD URLs given, terminating...")
         exit(1)
 
-    application.listen(int(os.environ.get("PORT", "5000")))
+    application.listen(int(os.environ.get("PORT", "5005")))
     tornado.ioloop.IOLoop.instance().start()

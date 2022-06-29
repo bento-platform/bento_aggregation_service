@@ -108,6 +108,7 @@ def _filter_results_by_index_combinations(
     ic_paths_to_filter: List[str],
 ) -> Dict[str, list]:
     # TODO: This stuff is slow
+    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] filter results by index combination {index_combinations}", flush=True)
 
     ic_paths_to_filter_set = set(ic_paths_to_filter)
 
@@ -139,6 +140,8 @@ def _filter_results_by_index_combinations(
                     ds[idx] = Kept(ds[idx]) if not isinstance(ds[idx], Kept) else ds[idx]
                 ds = ds[idx]
 
+    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] datasets paths built", flush=True)
+
     sorted_icps = sorted(ic_paths_to_filter, key=lambda icp: len(icp))
 
     for ic_path in sorted_icps:
@@ -146,6 +149,8 @@ def _filter_results_by_index_combinations(
 
     for ic_path in sorted_icps:
         dataset_results = _strip_kept(dataset_results, ic_path.split(".")[1:])
+
+    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] datasets results built", flush=True)
 
     return dataset_results
 

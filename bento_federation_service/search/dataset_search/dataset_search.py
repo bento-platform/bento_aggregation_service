@@ -146,6 +146,15 @@ def _get_array_resolve_paths(query: Query) -> List[str]:
 
 async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
                                          table_ownerships_and_records: List[Tuple[dict, dict]]):
+    """
+    Routine processed in parallel between workers. Gets metadata for each
+    table in the queue.
+    !Impure function!
+    :param table_queue: Queue of tables descriptors (incl. table_id) shared
+                        between all workers.
+    :param table_ownserships_and_records: reference, stores a tuple for each
+                        table (table descriptors, JSON output with table metadata).
+    """
     client = AsyncHTTPClient()
 
     async for t in table_queue:
@@ -164,7 +173,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
                 url = f"api/gohan/tables/{t['table_id']}"
 
             print("url: " + url)
-            
+
             #TODO: Don't fetch schema except for first time?
             table_ownerships_and_records.append((t, await peer_fetch(
                 client,
@@ -203,7 +212,7 @@ async def _table_search_worker(
 
             # Don't need to fetch results for joining if the join query is None; just check
             # individual tables (which is much faster) using the public discovery endpoint.
-            private = dataset_join_query is not None or include_internal_results
+            is_private = dataset_join_query is not None or include_internal_results
 
             if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
                 # Since we have a join query, we need to create a superstructure containing
@@ -223,7 +232,7 @@ async def _table_search_worker(
             # Setup up search pre-requisites
             # - defaults:
             path_fragment=(
-                f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
+                f"api/{table_ownership['service_artifact']}{'/private' if is_private else ''}/tables"
                 f"/{table_record['id']}/search"
             )
             url_args = (("query", json.dumps(data_type_queries[table_data_type])),)
@@ -258,7 +267,7 @@ async def _table_search_worker(
             )
 
 
-            if private:
+            if is_private:
                 # We have a results array to account for
                 results = r["results"]
             else:
@@ -294,6 +303,10 @@ async def run_search_on_dataset(
 
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])
 
+    # Run multiple asynchronous calls in parrallel over the range of available
+    # workers. All workers pop queries from a shared queue.
+    # This eventually stores into table_ownerships_and_records the metadata for
+    # each table in the dataset (incl data_type and schema)
     table_definition_workers = tornado.gen.multi([
         _fetch_table_definition_worker(table_ownership_queue, auth_header, table_ownerships_and_records)
         for _ in range(WORKERS)
