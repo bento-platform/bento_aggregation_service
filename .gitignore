@@ -1,9 +1,19 @@
 env
+
+# IDE related
 .idea/workspace.xml
 .idea/dataSources*
 .idea/rSettings.xml
+.vscode/*
+
+# Keep vscode debugger configuration
+!.vscode/launch.json
+
 *.db
 __pycache__
 .coverage
 .tox/
 htmlcov/
+
+# MacOS
+.DS_Store
