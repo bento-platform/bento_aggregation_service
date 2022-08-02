@@ -87,6 +87,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
             # TODO: Better message
             print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from service: {str(e)}", file=sys.stderr,
                   flush=True)
+            traceback.print_exc()
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
