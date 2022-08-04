@@ -6,11 +6,20 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Attach Debugger",
+            "name": "Attach Debugger",
             "type": "python",
             "request": "attach",
             "port": 5879,
-            "host": "0.0.0.0"
+            "host": "0.0.0.0",
+            "justMyCode": true,
+        },
+        {
+            "name": "Fed. + dep. - Attach Debugger",
+            "type": "python",
+            "request": "attach",
+            "port": 5879,
+            "host": "0.0.0.0",
+            "justMyCode": false,
         },
     ]
   }
