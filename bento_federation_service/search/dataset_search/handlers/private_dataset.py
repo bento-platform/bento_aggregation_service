@@ -60,7 +60,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 "properties": {}
             }
 
-            dataset_results, dataset_join_query, ic_paths_to_filter = await run_search_on_dataset(
+            dataset_results = await run_search_on_dataset(
                 dataset_object_schema,
                 dataset,
                 join_query,
@@ -70,16 +70,10 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 auth_header,
             )
 
-            self.write(next(process_dataset_results(
-                data_type_queries,
-                dataset_join_query,
-                dataset_results,
-                dataset,
-                dataset_object_schema,
-                include_internal_data=True,
-                ic_paths_to_filter=ic_paths_to_filter,
-                always_yield=True,
-            )))
+            self.write({
+                **dataset,
+                **dataset_results
+            })
 
             self.set_header("Content-Type", "application/json")
 

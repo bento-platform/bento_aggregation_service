@@ -203,11 +203,30 @@ async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
     data_type_queries: Dict[str, Query],
+    target_linked_fields: DictOfDataTypesAndFields,
     include_internal_results: bool,
     auth_header: Optional[str],
     dataset_object_schema: dict,
-    dataset_results: Dict[str, list],
+    dataset_linked_fields_results: List[set],
 ):
+    """
+    Impure async function.
+    The following arguments are mutated by the function:
+    - dataset_object_schema
+    - dataset_linked_fields_results
+    WARNING: I have tried to use a set() and flags to make the intersections
+    between the results returned by each async function. It lead to unnexpected
+    results due to the fact that each async run seems to have its own context
+    and not share a common state with the other concurrent runs. It looks like
+    this is only resolved in the context of the caller of this function after
+    the queue of workers has emptied. So, change this at your own risk and make
+    sure to test.
+    Note: could we use a pure function pattern here and have each worker actually
+    return a value. The caller would have to await the return value from all the
+    workers, but we would avoid the issue of shared objects which look like they
+    are not shared reference but rely on intermediary copies (not sure about what
+    the issue is, but it looks "dangerous")
+    """
     client = AsyncHTTPClient()
 
     async for table_pair in table_queue:
@@ -251,9 +270,16 @@ async def _table_search_worker(
             )
             url_args = (("query", json.dumps(data_type_queries[table_data_type])),)
 
+            # WIP: if no linked fields have been defined, the search can still be made?
+            if target_linked_fields:
+                url_args += (("field", json.dumps(target_linked_fields[table_data_type])),
+                             ("output", "values_list"))
+
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            if USE_GOHAN and table_ownership['service_artifact'] == "gohan":
+            # TODO: cleanup note: json.loads(json.dumps()) seems dubious, url_args was a tuple and becomes a list
+            is_using_gohan = USE_GOHAN and table_ownership['service_artifact'] == "gohan"
+            if is_using_gohan:
                 # reset path_fragment:
                 path_fragment = (f"api/gohan/variants/get/by/variantId")
 
@@ -282,19 +308,48 @@ async def _table_search_worker(
 
 
             if private:
+                ids = r["results"]
+                if is_using_gohan:
+                    # the gohan results object has to be flattened to a list of sample_id from
+                    # [{
+                    #   "assembly":...,
+                    #   "calls": [{
+                    #               "sample_id": "HG00106",
+                    #               "genotype_type": "HETEROZYGOUS"
+                    #             },...
+                    #           ]
+                    # },...]
+                    ids = [call["sample_id"]
+                            for r in ids
+                                for call in r["calls"]]
                 # We have a results array to account for
-                results = r["results"]
+                results = set(ids)
             else:
                 # Here, the array of 1 True is a dummy value to give a positive result
-                results = [r] if r else []
+                results = {r} if r else set()
 
-            if table_data_type not in dataset_results:
-                dataset_results[table_data_type] = results
-            else:
-                dataset_results[table_data_type].extend(results)
+            dataset_linked_fields_results.append(results)
 
         finally:
             table_queue.task_done()
+
+
+def _get_linked_field_for_query(
+    linked_field_sets: LinkedFieldSetList,
+    data_type_queries: Dict[str, Query]
+) -> DictOfDataTypesAndFields:
+    """
+    Given the linked field sets that are defined for a given Dataset, and a
+    query definition, returns the first set of linked fields that is
+    suitable for performing the joins between the data_types.
+    In a typical Bento instance, only one linked field set is defined (over
+    biosamples id), but this function makes this choice in an independent way.
+    """
+    dt = set(data_type_queries.keys())
+    for linked_fields in linked_field_sets:
+        if dt.issubset(linked_fields.keys()):
+            return linked_fields
+    return None
 
 
 async def run_search_on_dataset(
@@ -307,6 +362,7 @@ async def run_search_on_dataset(
     auth_header: Optional[str] = None,
 ) -> Tuple[Dict[str, list], Query, List[str]]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
+    target_linked_field = _get_linked_field_for_query(linked_field_sets, data_type_queries)
 
     # print(f"Linked Field Sets: {linked_field_sets}")
     # print(f"Dataset: {dataset}")
@@ -315,7 +371,7 @@ async def run_search_on_dataset(
     # from each data service to which the table belongs)
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
 
-    table_ownership_queue = iterable_to_queue(dataset["table_ownership"])
+    table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
 
     table_definition_workers = tornado.gen.multi([
         _fetch_table_definition_worker(table_ownership_queue, auth_header, table_ownerships_and_records)
@@ -380,7 +436,7 @@ async def run_search_on_dataset(
 
     # ------------------------- Start running search on tables -------------------------
 
-    dataset_results: Dict[str, list] = {}
+    dataset_linked_fields_results: List[set] = []
 
     table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
@@ -389,10 +445,11 @@ async def run_search_on_dataset(
             table_pairs_queue,
             join_query,
             data_type_queries,
+            target_linked_field,
             include_internal_results,
             auth_header,
             dataset_object_schema,
-            dataset_results,
+            dataset_linked_fields_results,
         )
         for _ in range(WORKERS)
     ])
@@ -406,7 +463,35 @@ async def run_search_on_dataset(
     # Wait for table search workers to exit
     await table_search_workers
 
-    # Return dataset-level results to calculate final result from
-    # Return dataset join query for later use (when generating results)
-    # Return index combination paths to filter by (for returning a proper result-set)
-    return dataset_results, join_query, ic_paths_to_filter
+    if include_internal_results:
+        results = dataset_linked_fields_results[0]
+        for r in dataset_linked_fields_results:
+            results.intersection_update(r)
+
+        table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
+        # WIP: what if no phenopacket service?
+        # Make this code more generic... Maybe, `format` and final `data-type` should
+        # be extracted from the request. If these are absent, then fetch results from
+        # every service.
+        path_fragment=(
+            f"api/metadata/private/tables/{table_id}/search"
+        )
+        request_body = json.dumps({
+            "query": [
+                      "#in",
+                      ["#resolve", *target_linked_field["phenopacket"]],
+                      ["#list", *results]],
+            "output": "bento_search_result"
+        })
+        r = await peer_fetch(
+            AsyncHTTPClient(),
+            CHORD_URL,
+            path_fragment=path_fragment,
+            request_body=request_body,
+            method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
+            auth_header=auth_header,  # Required in some cases to not get a 403
+            extra_headers=DATASET_SEARCH_HEADERS,
+        )
+        return r
+
+    return dataset_linked_fields_results
