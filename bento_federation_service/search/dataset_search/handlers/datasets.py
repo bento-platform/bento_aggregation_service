@@ -59,7 +59,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             try:
                 dataset_id = dataset["identifier"]
 
-                dataset_results, dataset_join_query, _ = await run_search_on_dataset(
+                dataset_results = await run_search_on_dataset(
                     dataset_object_schema,
                     dataset,
                     join_query,
@@ -70,7 +70,6 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 )
 
                 dataset_objects_dict[dataset_id] = dataset_results
-                dataset_join_queries[dataset_id] = dataset_join_query
 
             except HTTPError as e:  # Thrown from run_search_on_dataset
                 # Metadata service error
