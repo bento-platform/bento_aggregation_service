@@ -13,10 +13,13 @@ if __name__ == "__main__":
 
     print(f"[{SERVICE_NAME}] Started")
     if CHORD_DEBUG:
-        import debugpy
-        DEBUGGER_PORT = int(os.environ.get("DEBUGGER_PORT", "5879"))
-        debugpy.listen(("0.0.0.0", DEBUGGER_PORT))
-        print('Debugger Attached')
+        try:
+            import debugpy
+            DEBUGGER_PORT = int(os.environ.get("DEBUGGER_PORT", "5879"))
+            debugpy.listen(("0.0.0.0", DEBUGGER_PORT))
+            print('Debugger Attached')
+        except ImportError:
+            print('Library debugpy not found.')
 
     application.listen(int(os.environ.get("PORT", "5000")))
     tornado.ioloop.IOLoop.instance().start()
