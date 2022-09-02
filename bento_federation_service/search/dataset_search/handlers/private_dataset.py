@@ -45,6 +45,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
 
             # TODO: Handle dataset 404 properly
 
+            # Collect table_id and linked_field_sets for this dataset
             dataset = await peer_fetch(
                 client,
                 CHORD_URL,

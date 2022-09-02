@@ -38,6 +38,9 @@ def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: Da
 
 
 def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
+    """
+    Recursive function to generate a join query between pairs of fields
+    """
     if len(pairs) == 1:
         return _linked_fields_to_join_query_fragment(*pairs[0])
 
@@ -47,6 +50,10 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
 
 
 def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
+    """
+    Recursive function to add joins between linked fields.
+    It recurses through the sets of linked fields.
+    """
     if len(linked_field_sets) == 0:
         print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] No useful linked field sets present", flush=True)
         return None
@@ -88,6 +95,11 @@ def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
 
 
 def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
+    """
+    Recursive function that prepends every #resolve list in the query AST
+    with the given prefix (a data-type such as `phenopacket`).
+    This is used for "in memory" joins
+    """
     if not isinstance(query, list) or len(query) == 0 or len(query[0]) == 0 or query[0][0] != "#":
         return query
 
@@ -146,6 +158,13 @@ def _get_array_resolve_paths(query: Query) -> List[str]:
 
 async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
                                          table_ownerships_and_records: List[Tuple[dict, dict]]):
+    """
+    Impure function.
+    Fetches the searcheable schema for each table by querying their corresponding
+    service.
+    The result is stored in the table_ownerships_and_records var as a tuple of
+    table_ownership (table_id and hosting service), and table definition (data_type, schema,...)
+    """
     client = AsyncHTTPClient()
 
     async for t in table_queue:
@@ -199,7 +218,7 @@ async def _table_search_worker(
         try:
             table_ownership, table_record = table_pair
             table_data_type = table_record["data_type"]
-            # True is a value used instead of the AST strign to return the whole
+            # True is a value used instead of the AST string to return the whole
             # datatype related data without any filtering. For perf. reasons
             # this is unneeded when doing a search
             is_querying_data_type = (table_data_type in data_type_queries
@@ -292,7 +311,7 @@ async def run_search_on_dataset(
     # print(f"Linked Field Sets: {linked_field_sets}")
     # print(f"Dataset: {dataset}")
 
-    # Pairs of table ownership records, from the metadata service, and table records,
+    # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs)
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
 
