@@ -184,7 +184,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
 
             print("url: " + url)
 
-            #TODO: Don't fetch schema except for first time?
+            # TODO: Don't fetch schema except for first time?
             table_ownerships_and_records.append((t, await peer_fetch(
                 client,
                 CHORD_URL,
@@ -241,7 +241,7 @@ async def _table_search_worker(
             # datatype related data without any filtering. For perf. reasons
             # this is unneeded when doing a search
             is_querying_data_type = (table_data_type in data_type_queries
-                and not data_type_queries[table_data_type] is True)
+                                     and not data_type_queries[table_data_type] is True)
 
             # Don't need to fetch results for joining if the join query is None; just check
             # individual tables (which is much faster) using the public discovery endpoint.
@@ -261,10 +261,9 @@ async def _table_search_worker(
             if not is_querying_data_type:
                 continue
 
-
             # Setup up search pre-requisites
             # - defaults:
-            path_fragment=(
+            path_fragment = (
                 f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
                 f"/{table_record['id']}/search"
             )
@@ -281,19 +280,18 @@ async def _table_search_worker(
             is_using_gohan = USE_GOHAN and table_ownership['service_artifact'] == "gohan"
             if is_using_gohan:
                 # reset path_fragment:
-                path_fragment = (f"api/gohan/variants/get/by/variantId")
+                path_fragment = ("api/gohan/variants/get/by/variantId")
 
                 # reset url_args:
                 # - construct based on search query
                 supplemental_url_args = [["getSampleIdsOnly", "true"]]
                 # - transform custom Query to list of lists to simplify
                 #   the gohan query parameter construction
-                tmpjson=json.dumps({"tmpkey":data_type_queries[table_data_type]})
-                reloaded_converted=json.loads(tmpjson)["tmpkey"]
+                tmpjson = json.dumps({"tmpkey": data_type_queries[table_data_type]})
+                reloaded_converted = json.loads(tmpjson)["tmpkey"]
                 # - generate query parameters from list of query tree objects
                 gohan_query_params = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
                 url_args = gohan_query_params
-
 
             # Run the search
             r = await peer_fetch(
@@ -305,7 +303,6 @@ async def _table_search_worker(
                 auth_header=auth_header,  # Required in some cases to not get a 403
                 extra_headers=DATASET_SEARCH_HEADERS,
             )
-
 
             if private:
                 ids = r["results"]
@@ -320,8 +317,8 @@ async def _table_search_worker(
                     #           ]
                     # },...]
                     ids = [call["sample_id"]
-                            for r in ids
-                                for call in r["calls"]]
+                           for r in ids
+                           for call in r["calls"]]
                 # We have a results array to account for
                 results = set(ids)
             else:
@@ -418,11 +415,6 @@ async def run_search_on_dataset(
             join_query = _linked_field_sets_to_join_query(
                 linked_field_sets, set(data_type_queries) - excluded_data_types)
 
-        # Figure out what index combinations we'll need to filter along from the join query,
-        # BEFORE we combine the join query with the data type queries to create the compound
-        # query used to find the actual results.
-        ic_paths_to_filter = _get_array_resolve_paths(join_query) if include_internal_results else []
-
         # Combine the join query with the data type queries, fixing resolves to be consistent
         join_query = _combine_join_and_data_type_queries(join_query, data_type_queries)
 
@@ -476,7 +468,7 @@ async def run_search_on_dataset(
     # Make this code more generic... Maybe, `format` and final `data-type` should
     # be extracted from the request. If these are absent, then fetch results from
     # every service.
-    path_fragment=(
+    path_fragment = (
         f"api/metadata/private/tables/{table_id}/search"
     )
     request_body = json.dumps({

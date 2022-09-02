@@ -16,7 +16,6 @@ from bento_federation_service.utils import peer_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
-from ..process_dataset_results import process_dataset_results
 from ..query_utils import get_query_parts, test_queries
 
 
