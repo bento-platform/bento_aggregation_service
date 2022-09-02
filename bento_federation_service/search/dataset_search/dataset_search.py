@@ -463,35 +463,36 @@ async def run_search_on_dataset(
     # Wait for table search workers to exit
     await table_search_workers
 
-    if include_internal_results:
-        results = dataset_linked_fields_results[0]
-        for r in dataset_linked_fields_results:
-            results.intersection_update(r)
+    # Compute the intersection between the sets of results
+    results = dataset_linked_fields_results[0]
+    for r in dataset_linked_fields_results:
+        results.intersection_update(r)
 
-        table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
-        # WIP: what if no phenopacket service?
-        # Make this code more generic... Maybe, `format` and final `data-type` should
-        # be extracted from the request. If these are absent, then fetch results from
-        # every service.
-        path_fragment=(
-            f"api/metadata/private/tables/{table_id}/search"
-        )
-        request_body = json.dumps({
-            "query": [
-                      "#in",
-                      ["#resolve", *target_linked_field["phenopacket"]],
-                      ["#list", *results]],
-            "output": "bento_search_result"
-        })
-        r = await peer_fetch(
-            AsyncHTTPClient(),
-            CHORD_URL,
-            path_fragment=path_fragment,
-            request_body=request_body,
-            method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
-            auth_header=auth_header,  # Required in some cases to not get a 403
-            extra_headers=DATASET_SEARCH_HEADERS,
-        )
-        return r
+    if not include_internal_results:
+        return results
 
-    return dataset_linked_fields_results
+    table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
+    # WIP: what if no phenopacket service?
+    # Make this code more generic... Maybe, `format` and final `data-type` should
+    # be extracted from the request. If these are absent, then fetch results from
+    # every service.
+    path_fragment=(
+        f"api/metadata/private/tables/{table_id}/search"
+    )
+    request_body = json.dumps({
+        "query": [
+                    "#in",
+                    ["#resolve", *target_linked_field["phenopacket"]],
+                    ["#list", *results]],
+        "output": "bento_search_result"
+    })
+    r = await peer_fetch(
+        AsyncHTTPClient(),
+        CHORD_URL,
+        path_fragment=path_fragment,
+        request_body=request_body,
+        method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
+        auth_header=auth_header,  # Required in some cases to not get a 403
+        extra_headers=DATASET_SEARCH_HEADERS,
+    )
+    return r
