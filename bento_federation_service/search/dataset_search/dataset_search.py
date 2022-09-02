@@ -164,7 +164,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
                 url = f"api/gohan/tables/{t['table_id']}"
 
             print("url: " + url)
-            
+
             #TODO: Don't fetch schema except for first time?
             table_ownerships_and_records.append((t, await peer_fetch(
                 client,
@@ -199,7 +199,11 @@ async def _table_search_worker(
         try:
             table_ownership, table_record = table_pair
             table_data_type = table_record["data_type"]
-            is_querying_data_type = table_data_type in data_type_queries
+            # True is a value used instead of the AST strign to return the whole
+            # datatype related data without any filtering. For perf. reasons
+            # this is unneeded when doing a search
+            is_querying_data_type = (table_data_type in data_type_queries
+                and not data_type_queries[table_data_type] is True)
 
             # Don't need to fetch results for joining if the join query is None; just check
             # individual tables (which is much faster) using the public discovery endpoint.
