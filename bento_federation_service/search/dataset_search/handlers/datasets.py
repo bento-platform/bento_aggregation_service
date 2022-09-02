@@ -150,15 +150,13 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
             # Aggregate datasets into results list if they satisfy the queries
-            for dataset_id, dataset_results in dataset_objects_dict.items():  # TODO: Worker
-                results.extend(process_dataset_results(
-                    data_type_queries,
-                    dataset_join_queries[dataset_id],
-                    dataset_results,
-                    datasets_dict[dataset_id],
-                    dataset_object_schema,
-                    include_internal_data=False
-                ))
+            for dataset_id, dataset_results in dataset_objects_dict.items():
+                if len(dataset_results) > 0:
+                    d = datasets_dict[dataset_id]
+                    results.append({
+                        **d,
+                        "results": {}
+                    })
 
             self.write({"results": results})
 
