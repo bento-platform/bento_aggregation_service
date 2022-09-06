@@ -320,7 +320,7 @@ async def _table_search_worker(
                            for r in ids
                            for call in r["calls"]]
                 # We have a results array to account for
-                results = set(ids)
+                results = set(id for id in ids if id is not None)
             else:
                 # Here, the array of 1 True is a dummy value to give a positive result
                 results = {r} if r else set()
