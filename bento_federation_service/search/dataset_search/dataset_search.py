@@ -428,40 +428,67 @@ async def run_search_on_dataset(
 
     # ------------------------- Start running search on tables -------------------------
 
-    dataset_linked_fields_results: List[set] = []
+    # Special case: when the query contains constraints only on phenopackets,
+    # searching for the matching biosamples id first will exclude any phenopacket
+    # for which no biosample is defined. In that case, querying directly
+    # for phenopackets is the correct way of collecting the data.
+    # When there is a combination of field, the query is the SQL equivalent to an
+    # INNER JOIN: when there is no join possible between the tables, there is
+    # no result that can be displayed.
 
-    table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
+    # In the next flag, the list comprehension with filtering for lists is used
+    # to take care of the case where a data_type is associated with the value
+    # `True`, as no query is performed in that case.
+    query_is_phenopacket_only = "phenopacket" in data_type_queries \
+        and len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
+    if query_is_phenopacket_only:
+        request_body = json.dumps({
+            "query": data_type_queries["phenopacket"],
+            "output": "bento_search_result"
+        })
+    else:
+        dataset_linked_fields_results: List[set] = []
 
-    table_search_workers = tornado.gen.multi([
-        _table_search_worker(
-            table_pairs_queue,
-            join_query,
-            data_type_queries,
-            target_linked_field,
-            include_internal_results,
-            auth_header,
-            dataset_object_schema,
-            dataset_linked_fields_results,
-        )
-        for _ in range(WORKERS)
-    ])
+        table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
-    await table_pairs_queue.join()
+        table_search_workers = tornado.gen.multi([
+            _table_search_worker(
+                table_pairs_queue,
+                join_query,
+                data_type_queries,
+                target_linked_field,
+                include_internal_results,
+                auth_header,
+                dataset_object_schema,
+                dataset_linked_fields_results,
+            )
+            for _ in range(WORKERS)
+        ])
 
-    # Trigger exit for all table search workers
-    for _ in range(WORKERS):
-        table_pairs_queue.put_nowait(None)
+        await table_pairs_queue.join()
 
-    # Wait for table search workers to exit
-    await table_search_workers
+        # Trigger exit for all table search workers
+        for _ in range(WORKERS):
+            table_pairs_queue.put_nowait(None)
 
-    # Compute the intersection between the sets of results
-    results = dataset_linked_fields_results[0]
-    for r in dataset_linked_fields_results:
-        results.intersection_update(r)
+        # Wait for table search workers to exit
+        await table_search_workers
 
-    if not include_internal_results:
-        return results
+        # Compute the intersection between the sets of results
+        results = dataset_linked_fields_results[0]
+        for r in dataset_linked_fields_results:
+            results.intersection_update(r)
+
+        if not include_internal_results:
+            return results
+
+        request_body = json.dumps({
+            "query": [
+                        "#in",
+                        ["#resolve", *target_linked_field["phenopacket"]],
+                        ["#list", *results]],
+            "output": "bento_search_result"
+        })
 
     table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
     # WIP: what if no phenopacket service?
@@ -471,13 +498,7 @@ async def run_search_on_dataset(
     path_fragment = (
         f"api/metadata/private/tables/{table_id}/search"
     )
-    request_body = json.dumps({
-        "query": [
-                    "#in",
-                    ["#resolve", *target_linked_field["phenopacket"]],
-                    ["#list", *results]],
-        "output": "bento_search_result"
-    })
+
     r = await peer_fetch(
         AsyncHTTPClient(),
         CHORD_URL,
