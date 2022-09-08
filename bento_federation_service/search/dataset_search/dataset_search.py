@@ -482,6 +482,12 @@ async def run_search_on_dataset(
         if not include_internal_results:
             return results
 
+        # edge case: no result, no extra query
+        if len(results) == 0:
+            return {
+                "results": []
+            }
+
         request_body = json.dumps({
             "query": [
                         "#in",
