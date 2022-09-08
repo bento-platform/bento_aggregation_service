@@ -439,8 +439,10 @@ async def run_search_on_dataset(
     # In the next flag, the list comprehension with filtering for lists is used
     # to take care of the case where a data_type is associated with the value
     # `True`, as no query is performed in that case.
-    query_is_phenopacket_only = "phenopacket" in data_type_queries \
-        and len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
+    query_is_phenopacket_only = (
+        "phenopacket" in data_type_queries
+        and isinstance(data_type_queries["phenopacket"], list)
+        and len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1)
     if query_is_phenopacket_only:
         request_body = json.dumps({
             "query": data_type_queries["phenopacket"],
