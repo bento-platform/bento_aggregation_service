@@ -16,7 +16,6 @@ from bento_federation_service.utils import peer_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
-from ..process_dataset_results import process_dataset_results
 from ..query_utils import get_query_parts, test_queries
 
 
@@ -59,7 +58,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             try:
                 dataset_id = dataset["identifier"]
 
-                dataset_results, dataset_join_query, _ = await run_search_on_dataset(
+                dataset_results = await run_search_on_dataset(
                     dataset_object_schema,
                     dataset,
                     join_query,
@@ -70,7 +69,6 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 )
 
                 dataset_objects_dict[dataset_id] = dataset_results
-                dataset_join_queries[dataset_id] = dataset_join_query
 
             except HTTPError as e:  # Thrown from run_search_on_dataset
                 # Metadata service error
@@ -151,15 +149,13 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
 
             # Aggregate datasets into results list if they satisfy the queries
-            for dataset_id, dataset_results in dataset_objects_dict.items():  # TODO: Worker
-                results.extend(process_dataset_results(
-                    data_type_queries,
-                    dataset_join_queries[dataset_id],
-                    dataset_results,
-                    datasets_dict[dataset_id],
-                    dataset_object_schema,
-                    include_internal_data=False
-                ))
+            for dataset_id, dataset_results in dataset_objects_dict.items():
+                if len(dataset_results) > 0:
+                    d = datasets_dict[dataset_id]
+                    results.append({
+                        **d,
+                        "results": {}
+                    })
 
             self.write({"results": results})
 

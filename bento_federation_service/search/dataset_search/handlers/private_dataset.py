@@ -11,7 +11,6 @@ from bento_federation_service.utils import peer_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
-from ..process_dataset_results import process_dataset_results
 from ..query_utils import get_query_parts, test_queries
 
 
@@ -45,6 +44,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
 
             # TODO: Handle dataset 404 properly
 
+            # Collect table_id and linked_field_sets for this dataset
             dataset = await peer_fetch(
                 client,
                 CHORD_URL,
@@ -59,7 +59,7 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 "properties": {}
             }
 
-            dataset_results, dataset_join_query, ic_paths_to_filter = await run_search_on_dataset(
+            dataset_results = await run_search_on_dataset(
                 dataset_object_schema,
                 dataset,
                 join_query,
@@ -69,16 +69,10 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 auth_header,
             )
 
-            self.write(next(process_dataset_results(
-                data_type_queries,
-                dataset_join_query,
-                dataset_results,
-                dataset,
-                dataset_object_schema,
-                include_internal_data=True,
-                ic_paths_to_filter=ic_paths_to_filter,
-                always_yield=True,
-            )))
+            self.write({
+                **dataset,
+                **dataset_results
+            })
 
             self.set_header("Content-Type", "application/json")
 

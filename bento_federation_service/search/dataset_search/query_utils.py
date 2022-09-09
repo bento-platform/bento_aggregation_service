@@ -37,32 +37,35 @@ def test_queries(queries: Iterable[Query]) -> None:
         # Try compiling each query to make sure it works.
         convert_query_to_ast_and_preprocess(q)
 
+
 def print_tree(tabs, t):
     for i in t:
-        if(isinstance(i, list)):
-            print_tree(tabs+1, i)
+        if isinstance(i, list):
+            print_tree(tabs + 1, i)
         else:
             print(f"{tabs*'   '}{i}")
 
 
 def simple_resolve_tree(t, finalists: list):
-    counter=0
+    counter = 0
     for i in t:
         if isinstance(i, list):
             simple_resolve_tree(i, finalists)
-        if counter == len(t)-1 and (isinstance(i, str) or isinstance(i, int)):
+        if counter == len(t) - 1 and (isinstance(i, str) or isinstance(i, int)):
             finalists.append(str(i))
-        counter+=1
+        counter += 1
     return finalists
 
+
 def pair_up_simple_list(t: List[List[str]]):
-    counter=0
-    pairs=[]
+    counter = 0
+    pairs = []
     for i in t:
         if counter % 2 == 0:
             pairs.append([t[counter], t[counter+1]])
         counter += 1
     return pairs
+
 
 def rename_gohan_compatible(list_pairs):
     for p in list_pairs:
@@ -75,15 +78,16 @@ def rename_gohan_compatible(list_pairs):
         elif p[0] == "genotype_type":
             p[0] = "genotype"
 
+
 def prune_non_gohan_paramters(list_pairs):
     for p in list_pairs:
         if p[0] == "sample_id":
             list_pairs.remove(p)
 
 
-def construct_gohan_query_params(ast: list, supplemental_args: List[List[str]]): 
+def construct_gohan_query_params(ast: list, supplemental_args: List[List[str]]):
     # somehow convert AST to a simple list of lists/strings/ints
-    #converted_ast = [] # temp
+    # converted_ast = [] # temp
 
     # resolve simple key/value pairs
     simple_list = []
@@ -94,7 +98,6 @@ def construct_gohan_query_params(ast: list, supplemental_args: List[List[str]]):
     # prune unnecessary paramers
     prune_non_gohan_paramters(pairs)
     # ensure gohan query param nameing convention matches up
-    rename_gohan_compatible(pairs) 
+    rename_gohan_compatible(pairs)
 
     return tuple(tuple(x) for x in pairs)
-
