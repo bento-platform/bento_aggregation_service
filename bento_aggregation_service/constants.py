@@ -22,7 +22,8 @@ __all__ = [
     "SERVICE_ID",
     "SERVICE_NAME",
 
-    "SERVICE_SOCKET",
+    "PORT",
+    "DEBUGGER_PORT",
 
     "CHORD_URL_SET",
 
@@ -70,7 +71,8 @@ SERVICE_TYPE = f"{SERVICE_TYPE_NO_VERSION}:{__version__}"
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE_NO_VERSION)
 SERVICE_NAME = "Bento Federation Service"
 
-SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
+PORT = int(os.environ.get("PORT", "5000"))
+DEBUGGER_PORT = int(os.environ.get("DEBUGGER_PORT", "5879"))
 
 CHORD_URL_SET = CHORD_URL != ""
 

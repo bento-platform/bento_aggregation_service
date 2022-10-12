@@ -4,17 +4,17 @@ import tornado.ioloop
 import tornado.web
 
 from datetime import datetime
-from tornado.httpserver import HTTPServer
-from tornado.netutil import bind_unix_socket
 from tornado.web import RequestHandler, url
 
 from .constants import (
     SERVICE_ID,
     SERVICE_TYPE,
     SERVICE_NAME,
+    PORT,
     BASE_PATH,
-    SERVICE_SOCKET,
+    CHORD_DEBUG,
     CHORD_URL_SET,
+    DEBUGGER_PORT,
 )
 from .search.handlers.datasets import DatasetsSearchHandler
 from .search.handlers.private_dataset import PrivateDatasetSearchHandler
@@ -55,6 +55,14 @@ def run():  # pragma: no cover
         print(f"[{SERVICE_NAME} {datetime.utcnow()}] CHORD_URL is not set, terminating...")
         exit(1)
 
-    server = HTTPServer(application)
-    server.add_socket(bind_unix_socket(SERVICE_SOCKET))
+    if CHORD_DEBUG:
+        try:
+            # noinspection PyPackageRequirements,PyUnresolvedReferences
+            import debugpy
+            debugpy.listen(("0.0.0.0", DEBUGGER_PORT))
+            print("debugger attached")
+        except ImportError:
+            print("debugpy not found")
+
+    application.listen(PORT)
     tornado.ioloop.IOLoop.current().start()
