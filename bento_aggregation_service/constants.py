@@ -7,10 +7,8 @@ from . import __version__
 __all__ = [
     "BASE_PATH",
     "CHORD_DEBUG",
-    "BENTO_FEDERATION_MODE",
     "CHORD_URL",
     "CHORD_HOST",
-    "CHORD_REGISTRY_URL",
 
     "OIDC_DISCOVERY_URI",
 
@@ -26,9 +24,9 @@ __all__ = [
 
     "SERVICE_SOCKET",
 
-    "INITIALIZE_IMMEDIATELY",
+    "CHORD_URL_SET",
 
-    "CHORD_URLS_SET",
+    "USE_GOHAN",
 
     "TIMEOUT",
     "WORKERS",
@@ -55,12 +53,10 @@ def _env_url_trailing_slash(var: str) -> str:
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
 
 CHORD_DEBUG = _env_to_bool("CHORD_DEBUG")
-BENTO_FEDERATION_MODE = _env_to_bool("BENTO_FEDERATION_MODE", default=True)
 
 # Set CHORD_URL and CHORD_REGISTRY_URL to environment values, or blank if not
 # available.
 CHORD_URL = _env_url_trailing_slash("CHORD_URL")
-CHORD_REGISTRY_URL = _env_url_trailing_slash("CHORD_REGISTRY_URL")
 
 CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
 OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
@@ -76,9 +72,7 @@ SERVICE_NAME = "Bento Federation Service"
 
 SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
 
-INITIALIZE_IMMEDIATELY = _env_to_bool("INITIALIZE_IMMEDIATELY", default=True)
-
-CHORD_URLS_SET = CHORD_URL != "" and CHORD_REGISTRY_URL != ""
+CHORD_URL_SET = CHORD_URL != ""
 
 USE_GOHAN = _env_to_bool("USE_GOHAN")
 

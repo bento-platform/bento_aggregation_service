@@ -5,7 +5,7 @@ from datetime import datetime
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from bento_federation_service.constants import CHORD_DEBUG, SERVICE_NAME
+from bento_aggregation_service.constants import CHORD_DEBUG, SERVICE_NAME
 
 
 __all__ = [

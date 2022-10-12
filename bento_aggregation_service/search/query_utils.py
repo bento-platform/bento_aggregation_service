@@ -1,7 +1,7 @@
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from bento_federation_service.utils import get_request_json
+from bento_aggregation_service.utils import get_request_json
 
 
 __all__ = [

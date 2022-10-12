@@ -9,9 +9,9 @@ from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_federation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS, USE_GOHAN
-from bento_federation_service.search.dataset_search import query_utils
-from bento_federation_service.utils import peer_fetch, iterable_to_queue
+from bento_aggregation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS, USE_GOHAN
+from bento_aggregation_service.search import query_utils
+from bento_aggregation_service.utils import peer_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
 
 
@@ -203,7 +203,7 @@ async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
     data_type_queries: Dict[str, Query],
-    target_linked_fields: DictOfDataTypesAndFields,
+    target_linked_fields: Optional[DictOfDataTypesAndFields],
     include_internal_results: bool,
     auth_header: Optional[str],
     dataset_object_schema: dict,
@@ -280,7 +280,7 @@ async def _table_search_worker(
             is_using_gohan = USE_GOHAN and table_ownership['service_artifact'] == "gohan"
             if is_using_gohan:
                 # reset path_fragment:
-                path_fragment = ("api/gohan/variants/get/by/variantId")
+                path_fragment = "api/gohan/variants/get/by/variantId"
 
                 # reset url_args:
                 # - construct based on search query
@@ -316,11 +316,13 @@ async def _table_search_worker(
                     #             },...
                     #           ]
                     # },...]
-                    ids = [call["sample_id"]
-                           for r in ids
-                           for call in r["calls"]]
+                    ids = [
+                        call["sample_id"]
+                        for r in ids
+                        for call in r["calls"]
+                    ]
                 # We have a results array to account for
-                results = set(id for id in ids if id is not None)
+                results = {id_ for id_ in ids if id_ is not None}
             else:
                 # Here, the array of 1 True is a dummy value to give a positive result
                 results = {r} if r else set()
@@ -334,7 +336,7 @@ async def _table_search_worker(
 def _get_linked_field_for_query(
     linked_field_sets: LinkedFieldSetList,
     data_type_queries: Dict[str, Query]
-) -> DictOfDataTypesAndFields:
+) -> Optional[DictOfDataTypesAndFields]:
     """
     Given the linked field sets that are defined for a given Dataset, and a
     query definition, returns the first set of linked fields that is
@@ -357,9 +359,10 @@ async def run_search_on_dataset(
     exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
-) -> Tuple[Dict[str, list], Query, List[str]]:
+) -> Dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
-    target_linked_field = _get_linked_field_for_query(linked_field_sets, data_type_queries)
+    target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
+        linked_field_sets, data_type_queries)
 
     # print(f"Linked Field Sets: {linked_field_sets}")
     # print(f"Dataset: {dataset}")
@@ -401,7 +404,7 @@ async def run_search_on_dataset(
             # This CANNOT be simplified to "if not dt_q:"; other truth-y values don't have the
             # same meaning (sorry Guido).
             if dt_q is not True:
-                return {dt2: [] for dt2 in data_type_queries}, None, []
+                return {dt2: [] for dt2 in data_type_queries}
 
             # Give it a boilerplate array schema and result set; there won't be anything there anyway
             dataset_object_schema["properties"][dt] = {"type": "array"}
@@ -482,7 +485,9 @@ async def run_search_on_dataset(
             results.intersection_update(r)
 
         if not include_internal_results:
-            return results
+            return {
+                "results": list(results),
+            }
 
         # edge case: no result, no extra query
         if len(results) == 0:
@@ -492,25 +497,23 @@ async def run_search_on_dataset(
 
         request_body = json.dumps({
             "query": [
-                        "#in",
-                        ["#resolve", *target_linked_field["phenopacket"]],
-                        ["#list", *results]],
+                "#in",
+                ["#resolve", *target_linked_field["phenopacket"]],
+                ["#list", *results],
+            ],
             "output": "bento_search_result"
         })
 
     table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
-    # WIP: what if no phenopacket service?
+
+    # TODO: what if no phenopacket service?
     # Make this code more generic... Maybe, `format` and final `data-type` should
     # be extracted from the request. If these are absent, then fetch results from
     # every service.
-    path_fragment = (
-        f"api/metadata/private/tables/{table_id}/search"
-    )
-
     r = await peer_fetch(
         AsyncHTTPClient(),
         CHORD_URL,
-        path_fragment=path_fragment,
+        path_fragment=f"api/metadata/private/tables/{table_id}/search",
         request_body=request_body,
         method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
         auth_header=auth_header,  # Required in some cases to not get a 403

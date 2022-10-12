@@ -1,5 +1,0 @@
-DROP TABLE IF EXISTS peers;
-
-CREATE TABLE peers (
-    url TEXT PRIMARY KEY
-);

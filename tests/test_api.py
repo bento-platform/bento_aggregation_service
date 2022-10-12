@@ -3,8 +3,8 @@ import json
 from tornado.testing import AsyncHTTPTestCase
 from tornado.web import Application
 
-from bento_federation_service.app import application
-from bento_federation_service.constants import SERVICE_ID
+from bento_aggregation_service.app import application
+from bento_aggregation_service.constants import SERVICE_ID
 
 
 class ApiTests(AsyncHTTPTestCase):

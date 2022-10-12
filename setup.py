@@ -14,8 +14,8 @@ setuptools.setup(
     name=config["package"]["name"],
     version=config["package"]["version"],
 
-    python_requires=">=3.6",
-    install_requires=["bento_lib==3.0.1", "tornado>=6.1,<6.2"],
+    python_requires=">=3.8",
+    install_requires=["bento_lib==4.0.0", "tornado>=6.2,<6.3"],
 
     author=config["package"]["authors"],
     author_email=config["package"]["author_emails"],
@@ -24,7 +24,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
 
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_namespace_packages(),
     include_package_data=True,
 
     entry_points={

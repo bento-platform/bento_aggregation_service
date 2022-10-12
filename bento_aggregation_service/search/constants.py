@@ -1,4 +1,4 @@
-from bento_federation_service.constants import CHORD_HOST
+from bento_aggregation_service.constants import CHORD_HOST
 
 __all__ = ["DATASET_SEARCH_HEADERS"]
 

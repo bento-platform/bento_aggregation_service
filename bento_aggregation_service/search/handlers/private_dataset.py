@@ -6,8 +6,8 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.web import RequestHandler
 
-from bento_federation_service.constants import CHORD_URL, SERVICE_NAME
-from bento_federation_service.utils import peer_fetch, get_auth_header
+from bento_aggregation_service.constants import CHORD_URL, SERVICE_NAME
+from bento_aggregation_service.utils import peer_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
