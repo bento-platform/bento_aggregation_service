@@ -65,11 +65,11 @@ OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
 SERVICE_ORGANIZATION = "ca.c3g.bento"
-SERVICE_ARTIFACT = "federation"
+SERVICE_ARTIFACT = "aggregation"
 SERVICE_TYPE_NO_VERSION = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}"
 SERVICE_TYPE = f"{SERVICE_TYPE_NO_VERSION}:{__version__}"
 SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE_NO_VERSION)
-SERVICE_NAME = "Bento Federation Service"
+SERVICE_NAME = "Bento Aggregation Service"
 
 PORT = int(os.environ.get("PORT", "5000"))
 DEBUGGER_PORT = int(os.environ.get("DEBUGGER_PORT", "5879"))

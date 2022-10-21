@@ -1,18 +1,19 @@
+from __future__ import annotations
+
 import sys
 import tornado.gen
 import traceback
 
 from bento_lib.responses.errors import bad_request_error, internal_server_error
-from bento_lib.search.queries import Query
 from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
-from bento_aggregation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS
-from bento_aggregation_service.utils import peer_fetch, get_auth_header
+from bento_aggregation_service.constants import SERVICE_NAME, WORKERS
+from bento_aggregation_service.utils import bento_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
@@ -40,15 +41,15 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         dataset_queue: Queue,
 
         # Input values
-        dataset_object_schema: dict,
+        # dataset_object_schema: dict,
         join_query,
         data_type_queries,
-        exclude_from_auto_join: Tuple[str, ...],
+        exclude_from_auto_join: tuple[str, ...],
         auth_header: Optional[str],
 
         # Output references
         dataset_objects_dict: dict,
-        dataset_join_queries: dict,
+        # dataset_join_queries: dict,
     ):
         async for dataset in dataset_queue:
             if dataset is None:
@@ -59,7 +60,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 dataset_id = dataset["identifier"]
 
                 dataset_results = await run_search_on_dataset(
-                    dataset_object_schema,
+                    # dataset_object_schema,
                     dataset,
                     join_query,
                     data_type_queries,
@@ -103,26 +104,24 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
 
             # TODO: Handle pagination
             # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
-            # Use Unix socket resolver
 
-            projects = await peer_fetch(
+            projects = await bento_fetch(
                 client,
-                CHORD_URL,
                 "api/metadata/api/projects",
                 method="GET",
                 auth_header=auth_header,
                 extra_headers=DATASET_SEARCH_HEADERS
             )
 
-            datasets_dict: Dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
-            dataset_objects_dict: Dict[str, Dict[str, list]] = {d: {} for d in datasets_dict}
+            datasets_dict: dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
+            dataset_objects_dict: dict[str, dict[str, list]] = {d: {} for d in datasets_dict}
 
-            dataset_object_schema = {
-                "type": "object",
-                "properties": {}
-            }
+            # dataset_object_schema = {
+            #     "type": "object",
+            #     "properties": {}
+            # }
 
-            dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
+            # dataset_join_queries: Dict[str, Query] = {d: None for d in datasets_dict}
 
             dataset_queue = Queue()
             for dataset in datasets_dict.values():
@@ -133,14 +132,14 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 self.search_worker(
                     dataset_queue,
 
-                    dataset_object_schema,
+                    # dataset_object_schema,
                     join_query,
                     data_type_queries,
                     exclude_from_auto_join,
                     auth_header,
 
                     dataset_objects_dict,
-                    dataset_join_queries,
+                    # dataset_join_queries,
                 )
                 for _ in range(WORKERS)
             ])

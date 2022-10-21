@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import bento_aggregation_service
 import tornado.gen
 import tornado.ioloop

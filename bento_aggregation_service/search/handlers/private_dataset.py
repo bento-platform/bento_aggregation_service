@@ -6,8 +6,8 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.web import RequestHandler
 
-from bento_aggregation_service.constants import CHORD_URL, SERVICE_NAME
-from bento_aggregation_service.utils import peer_fetch, get_auth_header
+from bento_aggregation_service.constants import SERVICE_NAME
+from bento_aggregation_service.utils import bento_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
@@ -45,22 +45,21 @@ class PrivateDatasetSearchHandler(RequestHandler):
             # TODO: Handle dataset 404 properly
 
             # Collect table_id and linked_field_sets for this dataset
-            dataset = await peer_fetch(
+            dataset = await bento_fetch(
                 client,
-                CHORD_URL,
                 f"api/metadata/api/datasets/{dataset_id}",
                 method="GET",
                 auth_header=auth_header,
                 extra_headers=DATASET_SEARCH_HEADERS
             )
 
-            dataset_object_schema = {
-                "type": "object",
-                "properties": {}
-            }
+            # dataset_object_schema = {
+            #     "type": "object",
+            #     "properties": {}
+            # }
 
             dataset_results = await run_search_on_dataset(
-                dataset_object_schema,
+                # dataset_object_schema,
                 dataset,
                 join_query,
                 data_type_queries,

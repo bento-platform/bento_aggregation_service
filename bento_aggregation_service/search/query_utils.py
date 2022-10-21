@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 from bento_aggregation_service.utils import get_request_json
 
@@ -10,13 +12,13 @@ __all__ = [
 ]
 
 
-def get_query_parts(request_body: bytes) -> Tuple[Optional[Dict[str, Query]], Optional[Query], Tuple[str, ...]]:
+def get_query_parts(request_body: bytes) -> tuple[Optional[dict[str, Query]], Optional[Query], tuple[str, ...]]:
     request = get_request_json(request_body)
     if request is None:
         return None, None, ()
 
     # Format: {"data_type": ["#eq", ...]}
-    data_type_queries: Optional[Dict[str, Query]] = request.get("data_type_queries")
+    data_type_queries: Optional[dict[str, Query]] = request.get("data_type_queries")
 
     # Format: normal query, using data types for join conditions
     join_query: Optional[Query] = request.get("join_query")
@@ -46,7 +48,7 @@ def print_tree(tabs, t):
             print(f"{tabs*'   '}{i}")
 
 
-def simple_resolve_tree(t, finalists: list):
+def simple_resolve_tree(t, finalists: list[str]) -> list[str]:
     counter = 0
     for i in t:
         if isinstance(i, list):
@@ -57,17 +59,17 @@ def simple_resolve_tree(t, finalists: list):
     return finalists
 
 
-def pair_up_simple_list(t: List[List[str]]):
+def pair_up_simple_list(t: list[str]) -> list[list[str]]:
     counter = 0
     pairs = []
-    for i in t:
+    for _ in t:
         if counter % 2 == 0:
             pairs.append([t[counter], t[counter+1]])
         counter += 1
     return pairs
 
 
-def rename_gohan_compatible(list_pairs):
+def rename_gohan_compatible(list_pairs: list[list[str]]):
     for p in list_pairs:
         if p[0] == "assembly_id":
             p[0] = "assemblyId"
@@ -85,12 +87,12 @@ def prune_non_gohan_paramters(list_pairs):
             list_pairs.remove(p)
 
 
-def construct_gohan_query_params(ast: list, supplemental_args: List[List[str]]):
+def construct_gohan_query_params(ast: list, supplemental_args: list[list[str]]):
     # somehow convert AST to a simple list of lists/strings/ints
     # converted_ast = [] # temp
 
     # resolve simple key/value pairs
-    simple_list = []
+    simple_list: list[str] = []
     simple_resolve_tree(ast, simple_list)
 
     # pair up simple list and concat with extra arg pairs

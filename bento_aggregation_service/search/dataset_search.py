@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import json
 import tornado.gen
@@ -9,9 +11,9 @@ from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_aggregation_service.constants import CHORD_URL, SERVICE_NAME, WORKERS, USE_GOHAN
+from bento_aggregation_service.constants import SERVICE_NAME, WORKERS, USE_GOHAN
 from bento_aggregation_service.search import query_utils
-from bento_aggregation_service.utils import peer_fetch, iterable_to_queue
+from bento_aggregation_service.utils import bento_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
 
 
@@ -64,7 +66,7 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
     # relevant means the data set is in the query.)
 
     # This does not deduplicate pairs if there are overlaps between the linked
-    # field sets, so a little bit of extra work might be performed.
+    # field sets, so a bit of extra work might be performed.
 
     # Just take the first linked field set, since we are recursing later.
 
@@ -173,21 +175,19 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             return
 
         try:
-            # Setup up pre-requisites
-            # - default:
-            url = f"api/{t['service_artifact']}/tables/{t['table_id']}"
-
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            if USE_GOHAN and t['service_artifact'] == "variant":
-                url = f"api/gohan/tables/{t['table_id']}"
+            artifact = t["service_artifact"]
+            if USE_GOHAN and artifact == "variant":
+                artifact = "gohan"
 
+            # Setup up pre-requisites
+            url = f"api/{artifact}/tables/{t['table_id']}"
             print("url: " + url)
 
             # TODO: Don't fetch schema except for first time?
-            table_ownerships_and_records.append((t, await peer_fetch(
+            table_ownerships_and_records.append((t, await bento_fetch(
                 client,
-                CHORD_URL,
                 url,
                 method="GET",
                 auth_header=auth_header,  # Required, otherwise may hit a 403 error
@@ -206,7 +206,7 @@ async def _table_search_worker(
     target_linked_fields: Optional[DictOfDataTypesAndFields],
     include_internal_results: bool,
     auth_header: Optional[str],
-    dataset_object_schema: dict,
+    # dataset_object_schema: dict,
     dataset_linked_fields_results: List[set],
 ):
     """
@@ -215,7 +215,7 @@ async def _table_search_worker(
     - dataset_object_schema
     - dataset_linked_fields_results
     WARNING: I have tried to use a set() and flags to make the intersections
-    between the results returned by each async function. It lead to unnexpected
+    between the results returned by each async function. It led to unnexpected
     results due to the fact that each async run seems to have its own context
     and not share a common state with the other concurrent runs. It looks like
     this is only resolved in the context of the caller of this function after
@@ -247,15 +247,15 @@ async def _table_search_worker(
             # individual tables (which is much faster) using the public discovery endpoint.
             private = dataset_join_query is not None or include_internal_results
 
-            if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
-                # Since we have a join query, we need to create a superstructure containing
-                # different search results and a schema to match.
-
-                # Set schema for data type if needed
-                dataset_object_schema["properties"][table_data_type] = {
-                    "type": "array",
-                    "items": table_record["schema"] if is_querying_data_type else {}
-                }
+            # if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
+            #     # Since we have a join query, we need to create a superstructure containing
+            #     # different search results and a schema to match.
+            #
+            #     # Set schema for data type if needed
+            #     dataset_object_schema["properties"][table_data_type] = {
+            #         "type": "array",
+            #         "items": table_record["schema"] if is_querying_data_type else {}
+            #     }
 
             # If data type is not being queried, its results are irrelevant
             if not is_querying_data_type:
@@ -277,7 +277,7 @@ async def _table_search_worker(
             # - Gohan compatibility
             # TODO: formalize/clean this up
             # TODO: cleanup note: json.loads(json.dumps()) seems dubious, url_args was a tuple and becomes a list
-            is_using_gohan = USE_GOHAN and table_ownership['service_artifact'] == "gohan"
+            is_using_gohan = USE_GOHAN and table_ownership["service_artifact"] == "gohan"
             if is_using_gohan:
                 # reset path_fragment:
                 path_fragment = "api/gohan/variants/get/by/variantId"
@@ -294,9 +294,8 @@ async def _table_search_worker(
                 url_args = gohan_query_params
 
             # Run the search
-            r = await peer_fetch(
+            r = await bento_fetch(
                 client,
-                CHORD_URL,
                 path_fragment=path_fragment,
                 url_args=url_args,
                 method="GET",
@@ -352,7 +351,7 @@ def _get_linked_field_for_query(
 
 
 async def run_search_on_dataset(
-    dataset_object_schema: dict,
+    # dataset_object_schema: dict,
     dataset: dict,
     join_query: Query,
     data_type_queries: Dict[str, Query],
@@ -368,7 +367,7 @@ async def run_search_on_dataset(
     # print(f"Dataset: {dataset}")
 
     # Pairs of table ownership records, from the metadata service, and table properties,
-    # from each data service to which the table belongs)
+    # from each data service to which the table belongs
     table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
 
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
@@ -407,7 +406,7 @@ async def run_search_on_dataset(
                 return {dt2: [] for dt2 in data_type_queries}
 
             # Give it a boilerplate array schema and result set; there won't be anything there anyway
-            dataset_object_schema["properties"][dt] = {"type": "array"}
+            # dataset_object_schema["properties"][dt] = {"type": "array"}
             excluded_data_types.add(dt)
 
             print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type from join: {dt}", flush=True)
@@ -443,14 +442,17 @@ async def run_search_on_dataset(
     # to take care of the case where a data_type is associated with the value
     # `True`, as no query is performed in that case.
     query_is_phenopacket_only = (
-        "phenopacket" in data_type_queries
-        and isinstance(data_type_queries["phenopacket"], list)
-        and len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1)
+        "phenopacket" in data_type_queries and
+        isinstance(data_type_queries["phenopacket"], list) and
+        len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
+    )
+
     if query_is_phenopacket_only:
-        request_body = json.dumps({
+        request_body = {
             "query": data_type_queries["phenopacket"],
             "output": "bento_search_result"
-        })
+        }
+
     else:
         dataset_linked_fields_results: List[set] = []
 
@@ -464,7 +466,7 @@ async def run_search_on_dataset(
                 target_linked_field,
                 include_internal_results,
                 auth_header,
-                dataset_object_schema,
+                # dataset_object_schema,
                 dataset_linked_fields_results,
             )
             for _ in range(WORKERS)
@@ -495,14 +497,14 @@ async def run_search_on_dataset(
                 "results": []
             }
 
-        request_body = json.dumps({
+        request_body = {
             "query": [
                 "#in",
                 ["#resolve", *target_linked_field["phenopacket"]],
                 ["#list", *results],
             ],
             "output": "bento_search_result"
-        })
+        }
 
     table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
 
@@ -510,11 +512,10 @@ async def run_search_on_dataset(
     # Make this code more generic... Maybe, `format` and final `data-type` should
     # be extracted from the request. If these are absent, then fetch results from
     # every service.
-    r = await peer_fetch(
+    r = await bento_fetch(
         AsyncHTTPClient(),
-        CHORD_URL,
         path_fragment=f"api/metadata/private/tables/{table_id}/search",
-        request_body=request_body,
+        request_body=json.dumps(request_body),
         method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
         auth_header=auth_header,  # Required in some cases to not get a 403
         extra_headers=DATASET_SEARCH_HEADERS,
