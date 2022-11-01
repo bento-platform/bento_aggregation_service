@@ -33,7 +33,7 @@ class ServiceInfoHandler(RequestHandler):
             "description": "Aggregation service for a Bento platform node.",
             "organization": {
                 "name": "C3G",
-                "url": "http://www.computationalgenomics.ca"
+                "url": "https://www.computationalgenomics.ca"
             },
             "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
             "version": bento_aggregation_service.__version__
