@@ -1,6 +1,6 @@
 FROM ghcr.io/bento-platform/bento_base_image:python-debian-latest
 
-WORKDIR /app
+WORKDIR /aggregation
 
 COPY requirements.txt .
 RUN pip install -r requirements.txt

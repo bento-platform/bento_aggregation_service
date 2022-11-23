@@ -1,12 +1,12 @@
 FROM ghcr.io/bento-platform/bento_base_image:python-debian-latest
 
-WORKDIR /app
+WORKDIR /aggregation
 
 COPY requirements.txt .
 COPY requirements.dev.txt .
 RUN pip install -r requirements.txt
 
-COPY . .
+# Don't copy code in, since it gets mounted in with development mode.
 
 ENV CHORD_DEBUG=True
 ENTRYPOINT ["python3", "run.py"]
