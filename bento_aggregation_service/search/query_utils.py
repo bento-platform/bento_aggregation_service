@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Iterable, Optional
 
 from bento_aggregation_service.utils import get_request_json
 
@@ -24,7 +24,7 @@ def get_query_parts(request_body: bytes) -> tuple[Optional[dict[str, Query]], Op
     join_query: Optional[Query] = request.get("join_query")
 
     # Format: list of data types to use as part of a full-join-ish thing instead of an inner-join-ish thing
-    exclude_from_auto_join: Tuple[str] = request.get("exclude_from_auto_join", ())
+    exclude_from_auto_join: tuple[str, ...] = request.get("exclude_from_auto_join", ())
 
     return data_type_queries, join_query, exclude_from_auto_join
 
