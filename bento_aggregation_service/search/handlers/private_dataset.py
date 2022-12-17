@@ -53,13 +53,13 @@ class PrivateDatasetSearchHandler(RequestHandler):
                 extra_headers=DATASET_SEARCH_HEADERS
             )
 
-            # dataset_object_schema = {
-            #     "type": "object",
-            #     "properties": {}
-            # }
+            dataset_object_schema = {
+                "type": "object",
+                "properties": {}
+            }
 
             dataset_results = await run_search_on_dataset(
-                # dataset_object_schema,
+                dataset_object_schema,
                 dataset,
                 join_query,
                 data_type_queries,

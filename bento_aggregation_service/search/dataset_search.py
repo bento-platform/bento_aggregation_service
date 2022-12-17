@@ -9,7 +9,7 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 from bento_aggregation_service.constants import SERVICE_NAME, WORKERS, USE_GOHAN
 from bento_aggregation_service.search import query_utils
@@ -22,10 +22,10 @@ __all__ = [
 ]
 
 
-FieldSpec = List[str]
-DataTypeAndField = Tuple[str, FieldSpec]
-DictOfDataTypesAndFields = Dict[str, FieldSpec]
-LinkedFieldSetList = List[DictOfDataTypesAndFields]
+FieldSpec = list[str]
+DataTypeAndField = tuple[str, FieldSpec]
+DictOfDataTypesAndFields = dict[str, FieldSpec]
+LinkedFieldSetList = list[DictOfDataTypesAndFields]
 
 
 def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField) -> Query:
@@ -51,7 +51,7 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
             _linked_field_set_to_join_query_rec(pairs[1:])]
 
 
-def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
+def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: set[str]) -> Optional[Query]:
     """
     Recursive function to add joins between linked fields.
     It recurses through the sets of linked fields.
@@ -96,7 +96,7 @@ def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
     ]
 
 
-def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
+def _augment_resolves(query: Query, prefix: tuple[str, ...]) -> Query:
     """
     Recursive function that prepends every #resolve list in the query AST
     with the given prefix (a data-type such as `phenopacket`).
@@ -111,7 +111,7 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
-def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Dict[str, Query]) -> Query:
+def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: dict[str, Query]) -> Query:
     if join_query is None:
         return None
 
@@ -129,7 +129,7 @@ def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Di
     return join_query
 
 
-def _get_array_resolve_paths(query: Query) -> List[str]:
+def _get_array_resolve_paths(query: Query) -> list[str]:
     """
     Collect string representations array resolve paths without the trailing [item] resolution from a query. This can
     facilitate determining which index combinations will appear; and can be used as a step in filtering results by
@@ -159,7 +159,7 @@ def _get_array_resolve_paths(query: Query) -> List[str]:
 
 
 async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
-                                         table_ownerships_and_records: List[Tuple[dict, dict]]):
+                                         table_ownerships_and_records: list[tuple[dict, dict]]):
     """
     Impure function.
     Fetches the searcheable schema for each table by querying their corresponding
@@ -202,12 +202,12 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
 async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
-    data_type_queries: Dict[str, Query],
+    data_type_queries: dict[str, Query],
     target_linked_fields: Optional[DictOfDataTypesAndFields],
     include_internal_results: bool,
     auth_header: Optional[str],
-    # dataset_object_schema: dict,
-    dataset_linked_fields_results: List[set],
+    dataset_object_schema: dict,
+    dataset_linked_fields_results: list[set],
 ):
     """
     Impure async function.
@@ -247,15 +247,15 @@ async def _table_search_worker(
             # individual tables (which is much faster) using the public discovery endpoint.
             private = dataset_join_query is not None or include_internal_results
 
-            # if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
-            #     # Since we have a join query, we need to create a superstructure containing
-            #     # different search results and a schema to match.
-            #
-            #     # Set schema for data type if needed
-            #     dataset_object_schema["properties"][table_data_type] = {
-            #         "type": "array",
-            #         "items": table_record["schema"] if is_querying_data_type else {}
-            #     }
+            if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
+                # Since we have a join query, we need to create a superstructure containing
+                # different search results and a schema to match.
+
+                # Set schema for data type if needed
+                dataset_object_schema["properties"][table_data_type] = {
+                    "type": "array",
+                    "items": table_record["schema"] if is_querying_data_type else {}
+                }
 
             # If data type is not being queried, its results are irrelevant
             if not is_querying_data_type:
@@ -334,7 +334,7 @@ async def _table_search_worker(
 
 def _get_linked_field_for_query(
     linked_field_sets: LinkedFieldSetList,
-    data_type_queries: Dict[str, Query]
+    data_type_queries: dict[str, Query]
 ) -> Optional[DictOfDataTypesAndFields]:
     """
     Given the linked field sets that are defined for a given Dataset, and a
@@ -351,14 +351,14 @@ def _get_linked_field_for_query(
 
 
 async def run_search_on_dataset(
-    # dataset_object_schema: dict,
+    dataset_object_schema: dict,
     dataset: dict,
     join_query: Query,
-    data_type_queries: Dict[str, Query],
-    exclude_from_auto_join: Tuple[str, ...],
+    data_type_queries: dict[str, Query],
+    exclude_from_auto_join: tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
-) -> Dict[str, list]:
+) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
         linked_field_sets, data_type_queries)
@@ -368,7 +368,7 @@ async def run_search_on_dataset(
 
     # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs
-    table_ownerships_and_records: List[Tuple[Dict, Dict]] = []
+    table_ownerships_and_records: list[tuple[dict, dict]] = []
 
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
 
@@ -381,13 +381,13 @@ async def run_search_on_dataset(
     try:
         # print(f"table_ownerships_and_records: {table_ownerships_and_records}")
 
-        table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
+        table_data_types: set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
 
         # Set of data types excluded from building the join query
         # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
         #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
         #   to match
-        excluded_data_types: Set[str] = set(exclude_from_auto_join)
+        excluded_data_types: set[str] = set(exclude_from_auto_join)
 
         if excluded_data_types:
             print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Pre-excluding data types from join: "
@@ -406,7 +406,7 @@ async def run_search_on_dataset(
                 return {dt2: [] for dt2 in data_type_queries}
 
             # Give it a boilerplate array schema and result set; there won't be anything there anyway
-            # dataset_object_schema["properties"][dt] = {"type": "array"}
+            dataset_object_schema["properties"][dt] = {"type": "array"}
             excluded_data_types.add(dt)
 
             print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type from join: {dt}", flush=True)
@@ -454,7 +454,7 @@ async def run_search_on_dataset(
         }
 
     else:
-        dataset_linked_fields_results: List[set] = []
+        dataset_linked_fields_results: list[set] = []
 
         table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
@@ -466,7 +466,7 @@ async def run_search_on_dataset(
                 target_linked_field,
                 include_internal_results,
                 auth_header,
-                # dataset_object_schema,
+                dataset_object_schema,
                 dataset_linked_fields_results,
             )
             for _ in range(WORKERS)
