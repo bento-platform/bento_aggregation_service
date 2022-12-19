@@ -17,5 +17,3 @@ is optional.
 
 Should usually be blank; set to non-blank to locally emulate a proxy prefix
 like `/api/aggregation`.
-
-`SOCKET`: Specifies Unix socket location for production deployment
