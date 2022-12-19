@@ -1,2 +1,0 @@
-include bento_federation_service/package.cfg
-include bento_federation_service/schema.sql

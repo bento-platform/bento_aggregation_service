@@ -1,0 +1,30 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "bento_aggregation_service"
+version = "0.15.0"
+description = "Search result aggregation service for the Bento platform."
+authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
+readme = "README.md"
+packages = [{include = "bento_aggregation_service"}]
+repository = "https://github.com/bento-platform/bento_aggregation_service"
+license = "LGPL-3.0-only"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Operating System :: OS Independent"
+]
+
+[tool.poetry.dependencies]
+python = "^3.8.1"
+bento-lib = "^5.0.2"
+tornado = "^6.2"
+
+[tool.poetry.group.dev.dependencies]
+codecov = "^2.1.12"
+coverage = "^6.5.0"
+debugpy = "^1.6.3"
+flake8 = "^6.0.0"
+tox = "^4.0.12"

@@ -7,10 +7,8 @@ from . import __version__
 __all__ = [
     "BASE_PATH",
     "CHORD_DEBUG",
-    "BENTO_FEDERATION_MODE",
     "CHORD_URL",
     "CHORD_HOST",
-    "CHORD_REGISTRY_URL",
 
     "OIDC_DISCOVERY_URI",
 
@@ -24,11 +22,12 @@ __all__ = [
     "SERVICE_ID",
     "SERVICE_NAME",
 
-    "SERVICE_SOCKET",
+    "PORT",
+    "DEBUGGER_PORT",
 
-    "INITIALIZE_IMMEDIATELY",
+    "CHORD_URL_SET",
 
-    "CHORD_URLS_SET",
+    "USE_GOHAN",
 
     "TIMEOUT",
     "WORKERS",
@@ -55,12 +54,10 @@ def _env_url_trailing_slash(var: str) -> str:
 BASE_PATH = os.environ.get("SERVICE_URL_BASE_PATH", "")
 
 CHORD_DEBUG = _env_to_bool("CHORD_DEBUG")
-BENTO_FEDERATION_MODE = _env_to_bool("BENTO_FEDERATION_MODE", default=True)
 
 # Set CHORD_URL and CHORD_REGISTRY_URL to environment values, or blank if not
 # available.
 CHORD_URL = _env_url_trailing_slash("CHORD_URL")
-CHORD_REGISTRY_URL = _env_url_trailing_slash("CHORD_REGISTRY_URL")
 
 CHORD_HOST = urllib.parse.urlparse(CHORD_URL or "").netloc or ""
 OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
@@ -69,16 +66,18 @@ DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.
 
 SERVICE_ORGANIZATION = "ca.c3g.bento"
 SERVICE_ARTIFACT = "federation"
-SERVICE_TYPE_NO_VERSION = f"{SERVICE_ORGANIZATION}:{SERVICE_ARTIFACT}"
-SERVICE_TYPE = f"{SERVICE_TYPE_NO_VERSION}:{__version__}"
-SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE_NO_VERSION)
-SERVICE_NAME = "Bento Federation Service"
+SERVICE_TYPE = {
+    "group": "ca.c3g.bento",
+    "artifact": SERVICE_ARTIFACT,
+    "version": __version__,
+}
+SERVICE_ID = os.environ.get("SERVICE_ID", ":".join(list(SERVICE_TYPE.values())[:2]))
+SERVICE_NAME = "Bento Aggregation Service"
 
-SERVICE_SOCKET = os.environ.get("SERVICE_SOCKET", "/tmp/federation.sock")
+PORT = int(os.environ.get("PORT", "5000"))
+DEBUGGER_PORT = int(os.environ.get("DEBUGGER_PORT", "5879"))
 
-INITIALIZE_IMMEDIATELY = _env_to_bool("INITIALIZE_IMMEDIATELY", default=True)
-
-CHORD_URLS_SET = CHORD_URL != "" and CHORD_REGISTRY_URL != ""
+CHORD_URL_SET = CHORD_URL != ""
 
 USE_GOHAN = _env_to_bool("USE_GOHAN")
 

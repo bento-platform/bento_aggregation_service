@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from collections.abc import Iterable
 from datetime import datetime
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
-from bento_federation_service.constants import CHORD_DEBUG, SERVICE_NAME
+from bento_aggregation_service.constants import CHORD_DEBUG, SERVICE_NAME
 
 
 __all__ = [
@@ -15,6 +17,7 @@ __all__ = [
 
 class Kept:
     def __init__(self, data: Any):
+        # noinspection PyUnresolvedReferences
         self.data = data.data if isinstance(data, Kept) else data
 
     def __getitem__(self, item):
@@ -34,7 +37,7 @@ def _is_list(x: Any):
     return isinstance(x, list)
 
 
-def _filter_kept(data_structure: Any, ic_path: List[str]) -> Any:
+def _filter_kept(data_structure: Any, ic_path: list[str]) -> Any:
     """
     Goes through a data structure and only keeps array items that are tagged with the Kept class as they occur along the
     index combination path we're following. Recurses on every element of arrays.
@@ -74,7 +77,7 @@ def _base_strip_kept(data_structure: Any) -> Any:
     return data_structure.data if isinstance(data_structure, Kept) else data_structure
 
 
-def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
+def _strip_kept(data_structure: Any, ic_path: list[str]) -> Any:
     """
     Goes through a data structure and strips any data wrapped in a Kept class as they occur along the index combination
     path we're following. Recurses on every element of arrays.
@@ -103,10 +106,10 @@ def _strip_kept(data_structure: Any, ic_path: List[str]) -> Any:
 
 
 def _filter_results_by_index_combinations(
-    dataset_results: Dict[str, list],
-    index_combinations: Tuple[dict],
-    ic_paths_to_filter: List[str],
-) -> Dict[str, list]:
+    dataset_results: dict[str, list],
+    index_combinations: tuple[dict, ...],
+    ic_paths_to_filter: list[str],
+) -> dict[str, list]:
     # TODO: This stuff is slow
 
     ic_paths_to_filter_set = set(ic_paths_to_filter)
@@ -151,10 +154,10 @@ def _filter_results_by_index_combinations(
 
 
 def _filter_results_by_index_combinations_if_set(
-    dataset_results: Dict[str, list],
-    index_combinations: Optional[Tuple[dict]],
-    ic_paths_to_filter: List[str],
-) -> Dict[str, list]:
+    dataset_results: dict[str, list],
+    index_combinations: Optional[tuple[dict, ...]],
+    ic_paths_to_filter: list[str],
+) -> dict[str, list]:
     if index_combinations is None:
         return dataset_results
 
@@ -162,13 +165,13 @@ def _filter_results_by_index_combinations_if_set(
 
 
 def process_dataset_results(
-    data_type_queries: Dict[str, Query],
+    data_type_queries: dict[str, Query],
     dataset_join_query: Query,
-    dataset_results: Dict[str, list],
+    dataset_results: dict[str, list],
     dataset: dict,
     dataset_object_schema: dict,
     include_internal_data: bool,
-    ic_paths_to_filter: Optional[List[str]] = None,
+    ic_paths_to_filter: Optional[list[str]] = None,
     always_yield: bool = False,
 ):
     # TODO: Check dataset, table-level authorizations
@@ -185,9 +188,14 @@ def process_dataset_results(
     #  - include_internal_data = True and check_ast_against_data_structure doesn't return an empty iterable
     ic = None
     if join_query_ast is not None:
-        ic = check_ast_against_data_structure(join_query_ast, dataset_results, dataset_object_schema,
-                                              internal=True, return_all_index_combinations=include_internal_data,
-                                              secure_errors=not CHORD_DEBUG)
+        ic = check_ast_against_data_structure(
+            join_query_ast, dataset_results, dataset_object_schema,
+            internal=True,
+            return_all_index_combinations=include_internal_data,
+            secure_errors=not CHORD_DEBUG,
+            skip_schema_validation=not CHORD_DEBUG,  # Schema validation adds a lot of slowdown but helps debugging.
+        )
+
         if isinstance(ic, Iterable):
             ic = tuple(ic)
 
