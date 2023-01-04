@@ -65,7 +65,7 @@ OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
 SERVICE_ORGANIZATION = "ca.c3g.bento"
-SERVICE_ARTIFACT = "federation"
+SERVICE_ARTIFACT = "aggregation"
 SERVICE_TYPE = {
     "group": "ca.c3g.bento",
     "artifact": SERVICE_ARTIFACT,
