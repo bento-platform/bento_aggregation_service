@@ -7,7 +7,7 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from bento_aggregation_service.constants import SERVICE_NAME, WORKERS, USE_GOHAN
 from bento_aggregation_service.search import query_utils
@@ -49,7 +49,7 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
             _linked_field_set_to_join_query_rec(pairs[1:])]
 
 
-def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: set[str]) -> Optional[Query]:
+def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
     """
     Recursive function to add joins between linked fields.
     It recurses through the sets of linked fields.
