@@ -109,7 +109,7 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
-def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: dict[str, Query]) -> Query:
+def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Dict[str, Query]) -> Query:
     if join_query is None:
         return None
 
@@ -200,12 +200,12 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
 async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
-    data_type_queries: dict[str, Query],
+    data_type_queries: Dict[str, Query],
     target_linked_fields: Optional[DictOfDataTypesAndFields],
     include_internal_results: bool,
     auth_header: Optional[str],
     dataset_object_schema: dict,
-    dataset_linked_fields_results: list[set],
+    dataset_linked_fields_results: List[set],
 ):
     """
     Impure async function.
@@ -332,7 +332,7 @@ async def _table_search_worker(
 
 def _get_linked_field_for_query(
     linked_field_sets: LinkedFieldSetList,
-    data_type_queries: dict[str, Query]
+    data_type_queries: Dict[str, Query]
 ) -> Optional[DictOfDataTypesAndFields]:
     """
     Given the linked field sets that are defined for a given Dataset, and a
@@ -352,11 +352,11 @@ async def run_search_on_dataset(
     dataset_object_schema: dict,
     dataset: dict,
     join_query: Query,
-    data_type_queries: dict[str, Query],
+    data_type_queries: Dict[str, Query],
     exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
-) -> dict[str, list]:
+) -> Dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
         linked_field_sets, data_type_queries)
