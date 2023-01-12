@@ -9,6 +9,7 @@ from datetime import datetime
 from tornado.web import RequestHandler, url
 
 from .constants import (
+    BENTO_SERVICE_KIND,
     SERVICE_ID,
     SERVICE_TYPE,
     SERVICE_NAME,
@@ -35,8 +36,11 @@ class ServiceInfoHandler(RequestHandler):
                 "name": "C3G",
                 "url": "https://www.computationalgenomics.ca"
             },
-            "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
-            "version": bento_aggregation_service.__version__
+            "contactUrl": "mailto:info@c3g.ca",
+            "version": bento_aggregation_service.__version__,
+            "bento": {
+                "serviceKind": BENTO_SERVICE_KIND,
+            },
         })
 
 

@@ -16,6 +16,7 @@ __all__ = [
 
     "MAX_BUFFER_SIZE",
 
+    "BENTO_SERVICE_KIND",
     "SERVICE_ORGANIZATION",
     "SERVICE_ARTIFACT",
     "SERVICE_TYPE",
@@ -64,8 +65,9 @@ OIDC_DISCOVERY_URI = os.environ.get("OIDC_DISCOVERY_URI")
 
 DB_PATH = os.path.join(os.getcwd(), os.environ.get("DATABASE", "data/federation.db"))
 
+BENTO_SERVICE_KIND = "aggregation"
 SERVICE_ORGANIZATION = "ca.c3g.bento"
-SERVICE_ARTIFACT = "aggregation"
+SERVICE_ARTIFACT = BENTO_SERVICE_KIND
 SERVICE_TYPE = {
     "group": "ca.c3g.bento",
     "artifact": SERVICE_ARTIFACT,
