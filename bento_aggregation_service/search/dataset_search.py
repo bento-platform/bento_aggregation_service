@@ -127,7 +127,7 @@ def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Di
     return join_query
 
 
-def _get_array_resolve_paths(query: Query) -> list[str]:
+def _get_array_resolve_paths(query: Query) -> List[str]:
     """
     Collect string representations array resolve paths without the trailing [item] resolution from a query. This can
     facilitate determining which index combinations will appear; and can be used as a step in filtering results by
