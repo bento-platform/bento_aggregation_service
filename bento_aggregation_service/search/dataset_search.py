@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import itertools
 import json
 import tornado.gen
@@ -9,7 +7,7 @@ from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
-from typing import Optional
+from typing import Dict, List, Optional, Tuple
 
 from bento_aggregation_service.constants import SERVICE_NAME, WORKERS, USE_GOHAN
 from bento_aggregation_service.search import query_utils
@@ -22,10 +20,10 @@ __all__ = [
 ]
 
 
-FieldSpec = list[str]
-DataTypeAndField = tuple[str, FieldSpec]
-DictOfDataTypesAndFields = dict[str, FieldSpec]
-LinkedFieldSetList = list[DictOfDataTypesAndFields]
+FieldSpec = List[str]
+DataTypeAndField = Tuple[str, FieldSpec]
+DictOfDataTypesAndFields = Dict[str, FieldSpec]
+LinkedFieldSetList = List[DictOfDataTypesAndFields]
 
 
 def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField) -> Query:
