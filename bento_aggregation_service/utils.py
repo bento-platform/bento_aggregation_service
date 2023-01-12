@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 
 from tornado.escape import url_escape

@@ -5,10 +5,12 @@ import tornado.gen
 import tornado.ioloop
 import tornado.web
 
+from bento_lib.types import GA4GHServiceInfo
 from datetime import datetime
 from tornado.web import RequestHandler, url
 
 from .constants import (
+    BENTO_SERVICE_KIND,
     SERVICE_ID,
     SERVICE_TYPE,
     SERVICE_NAME,
@@ -24,20 +26,25 @@ from .search.handlers.private_dataset import PrivateDatasetSearchHandler
 
 # noinspection PyAbstractClass,PyAttributeOutsideInit
 class ServiceInfoHandler(RequestHandler):
+    SERVICE_INFO: GA4GHServiceInfo = {
+        "id": SERVICE_ID,
+        "name": SERVICE_NAME,  # TODO: Should be globally unique?
+        "type": SERVICE_TYPE,
+        "description": "Aggregation service for a Bento platform node.",
+        "organization": {
+            "name": "C3G",
+            "url": "https://www.computationalgenomics.ca"
+        },
+        "contactUrl": "mailto:info@c3g.ca",
+        "version": bento_aggregation_service.__version__,
+        "bento": {
+            "serviceKind": BENTO_SERVICE_KIND,
+        },
+    }
+
     async def get(self):
         # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
-        self.write({
-            "id": SERVICE_ID,
-            "name": SERVICE_NAME,  # TODO: Should be globally unique?
-            "type": SERVICE_TYPE,
-            "description": "Aggregation service for a Bento platform node.",
-            "organization": {
-                "name": "C3G",
-                "url": "https://www.computationalgenomics.ca"
-            },
-            "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
-            "version": bento_aggregation_service.__version__
-        })
+        self.write(self.SERVICE_INFO)
 
 
 class Application(tornado.web.Application):
