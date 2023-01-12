@@ -1,6 +1,6 @@
 FROM ghcr.io/bento-platform/bento_base_image:python-debian-latest
 
-RUN pip install --no-cache-dir poetry==1.2.2 "uvicorn[standard]==0.20.0"
+RUN pip install --no-cache-dir poetry==1.3.2 "uvicorn[standard]==0.20.0"
 
 WORKDIR /aggregation
 
