@@ -94,7 +94,7 @@ def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
     ]
 
 
-def _augment_resolves(query: Query, prefix: tuple[str, ...]) -> Query:
+def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     """
     Recursive function that prepends every #resolve list in the query AST
     with the given prefix (a data-type such as `phenopacket`).
@@ -157,7 +157,7 @@ def _get_array_resolve_paths(query: Query) -> list[str]:
 
 
 async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
-                                         table_ownerships_and_records: list[tuple[dict, dict]]):
+                                         table_ownerships_and_records: List[Tuple[dict, dict]]):
     """
     Impure function.
     Fetches the searcheable schema for each table by querying their corresponding
@@ -353,7 +353,7 @@ async def run_search_on_dataset(
     dataset: dict,
     join_query: Query,
     data_type_queries: dict[str, Query],
-    exclude_from_auto_join: tuple[str, ...],
+    exclude_from_auto_join: Tuple[str, ...],
     include_internal_results: bool,
     auth_header: Optional[str] = None,
 ) -> dict[str, list]:
@@ -366,7 +366,7 @@ async def run_search_on_dataset(
 
     # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs
-    table_ownerships_and_records: list[tuple[dict, dict]] = []
+    table_ownerships_and_records: List[Tuple[dict, dict]] = []
 
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
 
@@ -379,13 +379,13 @@ async def run_search_on_dataset(
     try:
         # print(f"table_ownerships_and_records: {table_ownerships_and_records}")
 
-        table_data_types: set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
+        table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
 
         # Set of data types excluded from building the join query
         # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
         #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
         #   to match
-        excluded_data_types: set[str] = set(exclude_from_auto_join)
+        excluded_data_types: Set[str] = set(exclude_from_auto_join)
 
         if excluded_data_types:
             print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Pre-excluding data types from join: "
@@ -452,7 +452,7 @@ async def run_search_on_dataset(
         }
 
     else:
-        dataset_linked_fields_results: list[set] = []
+        dataset_linked_fields_results: List[set] = []
 
         table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
