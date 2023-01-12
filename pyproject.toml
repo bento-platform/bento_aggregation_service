@@ -19,7 +19,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.8.1"
-bento-lib = "^5.0.2"
+bento-lib = "^5.2.0"
 tornado = "^6.2"
 
 [tool.poetry.group.dev.dependencies]
