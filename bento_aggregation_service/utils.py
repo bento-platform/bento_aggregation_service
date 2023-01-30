@@ -8,7 +8,7 @@ from tornado.queues import Queue
 from typing import Iterable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from .constants import CHORD_DEBUG, CHORD_URL, SERVICE_NAME, TIMEOUT
+from .constants import CHORD_DEBUG, CHORD_URL, TIMEOUT
 from .logger import logger
 
 
@@ -26,9 +26,6 @@ RequestBody = Optional[Union[bytes, str]]
 async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body: RequestBody = None,
                       method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None,
                       url_args: Tuple[Tuple[str, str]] = ()):
-    if CHORD_DEBUG:
-        print(f"[{SERVICE_NAME}] [DEBUG] {method} to {urljoin(CHORD_URL, path_fragment)}: {request_body}", flush=True)
-
     if isinstance(request_body, str):
         # Convert str to bytes with only accepted charset: UTF-8
         request_body = request_body.encode("UTF-8")
@@ -38,6 +35,8 @@ async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body:
         arg_str = "?" + "&".join(f"{k}={url_escape(v)}" for k, v in url_args)
 
     final_url = urljoin(CHORD_URL, path_fragment) + arg_str
+
+    logger.debug(f"bento_fetch: performing {method} {final_url} with request body: {request_body}")
 
     r = await client.fetch(
         final_url,
@@ -51,8 +50,8 @@ async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body:
         },
         raise_error=True
     )
-    
-    ql = f"bento_fetch: queried {final_url} and got"
+
+    ql = f"bento_fetch: performed {method} {final_url} and got"
     logger.debug(f"{ql} error response: {r.code} {r.body}" if r.code >= 400 else f"{ql} response code: {r.code}")
 
     return json.loads(r.body) if r.code != 204 else None
