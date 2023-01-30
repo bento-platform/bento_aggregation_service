@@ -35,6 +35,8 @@ __all__ = [
     "TIMEOUT",
     "WORKERS",
     "LAST_ERRORED_CACHE_TIME",
+
+    "LOG_LEVEL",
 ]
 
 
@@ -94,3 +96,5 @@ try:
     WORKERS = len(os.sched_getaffinity(0))
 except AttributeError:  # Some operating systems don't provide sched_getaffinity
     WORKERS = 4  # Default to 4 workers
+
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "debug").lower()

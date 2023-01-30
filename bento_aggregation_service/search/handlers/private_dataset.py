@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import sys
 import traceback
 
 from bento_lib.responses.errors import bad_request_error, internal_server_error
-from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.web import RequestHandler
 
-from bento_aggregation_service.constants import SERVICE_NAME
+from bento_aggregation_service.logger import logger
 from bento_aggregation_service.utils import bento_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
@@ -80,9 +78,8 @@ class PrivateDatasetSearchHandler(RequestHandler):
         except HTTPError as e:
             # Metadata service error
             # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from service: {str(e)}", file=sys.stderr,
-                  flush=True)
-            traceback.print_exc()
+            logger.error(f"Error from service: {str(e)}")
+            traceback.print_exc()  # TODO: log instead of printing manually
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -92,6 +89,5 @@ class PrivateDatasetSearchHandler(RequestHandler):
             # TODO: Not guaranteed to be actually query-processing errors
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Encountered query processing error: {str(e)}",
-                  file=sys.stderr, flush=True)
+            logger.error(f"Encountered query processing error: {str(e)}")
             traceback.print_exc()

@@ -3,11 +3,11 @@ from __future__ import annotations
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from collections.abc import Iterable
-from datetime import datetime
 
 from typing import Any, Optional
 
-from bento_aggregation_service.constants import CHORD_DEBUG, SERVICE_NAME
+from bento_aggregation_service.constants import CHORD_DEBUG
+from bento_aggregation_service.logger import logger
 
 
 __all__ = [
@@ -181,7 +181,7 @@ def process_dataset_results(
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(dataset_join_query) if dataset_join_query is not None else None
 
-    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Compiled join query: {join_query_ast}", flush=True)
+    logger.debug(f"Compiled join query: {join_query_ast}")
 
     # Truth-y if:
     #  - include_internal_data = False and check_ast_against_data_structure returns True

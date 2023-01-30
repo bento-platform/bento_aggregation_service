@@ -6,7 +6,6 @@ import tornado.ioloop
 import tornado.web
 
 from bento_lib.types import GA4GHServiceInfo
-from datetime import datetime
 from tornado.web import RequestHandler, url
 
 from .constants import (
@@ -20,6 +19,7 @@ from .constants import (
     CHORD_URL_SET,
     DEBUGGER_PORT,
 )
+from .logger import logger
 from .search.handlers.datasets import DatasetsSearchHandler
 from .search.handlers.private_dataset import PrivateDatasetSearchHandler
 
@@ -61,7 +61,7 @@ application = Application(BASE_PATH)
 
 def run():  # pragma: no cover
     if not CHORD_URL_SET:
-        print(f"[{SERVICE_NAME} {datetime.utcnow()}] CHORD_URL is not set, terminating...")
+        logger.critical("CHORD_URL is not set, terminating...")
         exit(1)
 
     if CHORD_DEBUG:
@@ -69,9 +69,9 @@ def run():  # pragma: no cover
             # noinspection PyPackageRequirements,PyUnresolvedReferences
             import debugpy
             debugpy.listen(("0.0.0.0", DEBUGGER_PORT))
-            print("debugger attached")
+            logger.info("debugger attached")
         except ImportError:
-            print("debugpy not found")
+            logger.info("debugpy not found")
 
     application.listen(PORT)
     tornado.ioloop.IOLoop.current().start()

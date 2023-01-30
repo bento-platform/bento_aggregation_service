@@ -3,13 +3,13 @@ import json
 import tornado.gen
 
 from bento_lib.search.queries import Query
-from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_aggregation_service.constants import SERVICE_NAME, WORKERS, USE_GOHAN
+from bento_aggregation_service.constants import WORKERS, USE_GOHAN
+from bento_aggregation_service.logger import logger
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.utils import bento_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
@@ -55,7 +55,7 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
     It recurses through the sets of linked fields.
     """
     if len(linked_field_sets) == 0:
-        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] No useful linked field sets present", flush=True)
+        logger.debug("No useful linked field sets present")
         return None
 
     # TODO: This blows up combinatorially, oh well.
@@ -73,7 +73,7 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
         if p[0][0] in data_type_set and p[1][0] in data_type_set)
 
     if len(pairs) == 0:
-        print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] No useful ID pairs present", flush=True)
+        logger.debug("No useful ID pairs present")
         return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
 
     if len(linked_field_sets) == 1:
@@ -122,7 +122,7 @@ def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Di
     for dt, q in data_type_queries.items():
         join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
 
-    print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Generated join query: {join_query}", flush=True)
+    logger.debug(f"Generated join query: {join_query}")
 
     return join_query
 
@@ -181,7 +181,8 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
 
             # Setup up pre-requisites
             url = f"api/{artifact}/tables/{t['table_id']}"
-            print("url: " + url)
+
+            logger.debug(f"Table URL fragment: {url}")
 
             # TODO: Don't fetch schema except for first time?
             table_ownerships_and_records.append((t, await bento_fetch(
@@ -361,8 +362,8 @@ async def run_search_on_dataset(
     target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
         linked_field_sets, data_type_queries)
 
-    # print(f"Linked Field Sets: {linked_field_sets}")
-    # print(f"Dataset: {dataset}")
+    logger.debug(f"Linked field sets: {linked_field_sets}")
+    logger.debug(f"Dataset: {dataset['id']}")
 
     # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs
@@ -377,7 +378,7 @@ async def run_search_on_dataset(
     await table_ownership_queue.join()
 
     try:
-        # print(f"table_ownerships_and_records: {table_ownerships_and_records}")
+        logger.debug(f"Table ownership and records: {table_ownerships_and_records}")
 
         table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
 
@@ -388,8 +389,7 @@ async def run_search_on_dataset(
         excluded_data_types: Set[str] = set(exclude_from_auto_join)
 
         if excluded_data_types:
-            print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Pre-excluding data types from join: "
-                  f"{excluded_data_types}", flush=True)
+            logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
 
         for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
             # If there are no tables of a particular data type, we don't get the schema. If this
@@ -407,7 +407,7 @@ async def run_search_on_dataset(
             dataset_object_schema["properties"][dt] = {"type": "array"}
             excluded_data_types.add(dt)
 
-            print(f"[{SERVICE_NAME} {datetime.now()}] [DEBUG] Excluding data type from join: {dt}", flush=True)
+            logger.debug(f"Excluding data type from join: {dt}")
 
         if join_query is None:
             # Could re-return None; pass set of all data types (keys of the data type queries)

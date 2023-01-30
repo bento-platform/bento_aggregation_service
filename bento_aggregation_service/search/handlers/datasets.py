@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import sys
 import tornado.gen
 import traceback
 
 from bento_lib.responses.errors import bad_request_error, internal_server_error
 from bento_lib.search.queries import Query
-from datetime import datetime
 from tornado.httpclient import AsyncHTTPClient, HTTPError
 from tornado.queues import Queue
 from tornado.web import RequestHandler
 
 from typing import Optional
 
-from bento_aggregation_service.constants import SERVICE_NAME, WORKERS
+from bento_aggregation_service.constants import WORKERS
+from bento_aggregation_service.logger import logger
 from bento_aggregation_service.utils import bento_fetch, get_auth_header
 
 from ..constants import DATASET_SEARCH_HEADERS
@@ -76,8 +75,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
                 # Metadata service error
                 # TODO: Better message
                 # TODO: Set error code outside worker?
-                print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from dataset search: {str(e)}", file=sys.stderr,
-                      flush=True)
+                logger.error(f"Error from dataset search: {str(e)}")
 
             finally:
                 dataset_queue.task_done()
@@ -89,6 +87,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
     async def post(self):
         data_type_queries, join_query, exclude_from_auto_join = get_query_parts(self.request.body)
         if not data_type_queries:
+            logger.error("Invalid request format (missing body or data_type_queries)")
             self.set_status(400)
             self.write(bad_request_error("Invalid request format (missing body or data_type_queries)"))
             return
@@ -146,7 +145,7 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             ])
             await dataset_queue.join()
 
-            print(f"[{SERVICE_NAME} {datetime.now()}] Done fetching individual service search results.", flush=True)
+            logger.info("Done fetching individual service search results.")
 
             # Aggregate datasets into results list if they satisfy the queries
             for dataset_id, dataset_results in dataset_objects_dict.items():
@@ -171,8 +170,8 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
         except HTTPError as e:
             # Metadata service error
             # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Error from service: {str(e)}", file=sys.stderr,
-                  flush=True)
+            logger.error(f"Error from service: {str(e)}")
+            # TODO: include traceback in error
             self.set_status(500)
             self.write(internal_server_error(f"Error from service: {str(e)}"))
 
@@ -182,6 +181,6 @@ class DatasetsSearchHandler(RequestHandler):  # TODO: Move to another dedicated 
             # TODO: Not guaranteed to be actually query-processing errors
             self.set_status(400)
             self.write(bad_request_error(f"Query processing error: {str(e)}"))  # TODO: Better message
-            print(f"[{SERVICE_NAME} {datetime.now()}] [ERROR] Encountered query processing error: {str(e)}",
-                  file=sys.stderr, flush=True)
+            logger.error(f"Encountered query processing error: {str(e)}")
+            # TODO: include traceback in actual debug log
             traceback.print_exc()
