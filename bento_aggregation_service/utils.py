@@ -9,6 +9,7 @@ from typing import Iterable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
 from .constants import CHORD_DEBUG, CHORD_URL, SERVICE_NAME, TIMEOUT
+from .logger import logger
 
 
 __all__ = [
@@ -36,8 +37,10 @@ async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body:
     if url_args:
         arg_str = "?" + "&".join(f"{k}={url_escape(v)}" for k, v in url_args)
 
+    final_url = urljoin(CHORD_URL, path_fragment) + arg_str
+
     r = await client.fetch(
-        urljoin(CHORD_URL, path_fragment) + arg_str,
+        final_url,
         request_timeout=TIMEOUT,
         method=method,
         body=request_body, validate_cert=(not CHORD_DEBUG),
@@ -48,6 +51,9 @@ async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body:
         },
         raise_error=True
     )
+    
+    ql = f"bento_fetch: queried {final_url} and got"
+    logger.debug(f"{ql} error response: {r.code} {r.body}" if r.code >= 400 else f"{ql} response code: {r.code}")
 
     return json.loads(r.body) if r.code != 204 else None
 
