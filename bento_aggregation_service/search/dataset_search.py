@@ -172,27 +172,35 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
             # Exit signal
             return
 
+        service_kind = t["service_artifact"]  # TODO: this should eventually be migrated to service_kind or something...
+
         try:
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            artifact = t["service_artifact"]
-            if USE_GOHAN and artifact == "variant":
-                artifact = "gohan"
+            if USE_GOHAN and service_kind == "variant":
+                service_kind = "gohan"
 
             # Setup up pre-requisites
-            url = f"api/{artifact}/tables/{t['table_id']}"
+            url = f"api/{service_kind}/tables/{t['table_id']}"
 
             logger.debug(f"Table URL fragment: {url}")
 
             # TODO: Don't fetch schema except for first time?
-            table_ownerships_and_records.append((t, await bento_fetch(
+            table_record = await bento_fetch(
                 client,
                 url,
                 method="GET",
                 auth_header=auth_header,  # Required, otherwise may hit a 403 error
                 extra_headers=DATASET_SEARCH_HEADERS
-            )))
-            # TODO: Handle HTTP errors
+            )
+
+            if isinstance(table_record, dict):
+                table_ownerships_and_records.append((t, table_record))
+            else:
+                logger.error(f"Encountered malformatted table record from {service_kind} (will skip): {table_record}")
+
+        except Exception as e:
+            logger.error(f"Encountered error while trying to fetch table record from {service_kind}: {e}")
 
         finally:
             table_queue.task_done()
