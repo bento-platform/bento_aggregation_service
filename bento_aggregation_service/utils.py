@@ -23,9 +23,15 @@ __all__ = [
 RequestBody = Optional[Union[bytes, str]]
 
 
-async def bento_fetch(client: AsyncHTTPClient, path_fragment: str, request_body: RequestBody = None,
-                      method: str = "POST", auth_header: Optional[str] = None, extra_headers: Optional[dict] = None,
-                      url_args: Tuple[Tuple[str, str]] = ()):
+async def bento_fetch(
+    client: AsyncHTTPClient,
+    path_fragment: str,
+    request_body: RequestBody = None,
+    method: str = "POST",
+    auth_header: Optional[str] = None,
+    extra_headers: Optional[dict] = None,
+    url_args: Tuple[Tuple[str, str]] = (),
+) -> Union[None, list, dict, int, float, str, bool]:
     if isinstance(request_body, str):
         # Convert str to bytes with only accepted charset: UTF-8
         request_body = request_body.encode("UTF-8")
