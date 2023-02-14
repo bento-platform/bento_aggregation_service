@@ -2,6 +2,8 @@ import logging
 
 from .constants import LOG_LEVEL
 
+logging.basicConfig(level=logging.NOTSET)
+
 __all__ = [
     "logger",
 ]

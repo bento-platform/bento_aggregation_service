@@ -4,9 +4,9 @@ RUN pip install --no-cache-dir poetry==1.3.2 "uvicorn[standard]==0.20.0"
 
 WORKDIR /aggregation
 
-COPY pyproject.toml pyproject.toml
-COPY poetry.toml poetry.toml
-COPY poetry.lock poetry.lock
+COPY pyproject.toml .
+COPY poetry.toml .
+COPY poetry.lock .
 
 # Install production + development dependencies
 # Without --no-root, we get errors related to the code not being copied in yet.
@@ -14,6 +14,9 @@ COPY poetry.lock poetry.lock
 RUN poetry install --no-root
 
 # Don't copy code in, since it gets mounted in with development mode.
+# Copy in an entrypoint so we have somewhere to start.
+
+COPY entrypoint.dev.bash .
 
 ENV CHORD_DEBUG=True
-ENTRYPOINT ["python3", "run.py"]
+ENTRYPOINT ["bash", "./entrypoint.dev.bash"]

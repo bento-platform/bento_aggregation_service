@@ -371,7 +371,7 @@ async def run_search_on_dataset(
         linked_field_sets, data_type_queries)
 
     logger.debug(f"Linked field sets: {linked_field_sets}")
-    logger.debug(f"Dataset: {dataset['id']}")
+    logger.debug(f"Dataset: {dataset['identifier']}")
 
     # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs
