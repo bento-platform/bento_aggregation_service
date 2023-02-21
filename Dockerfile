@@ -1,5 +1,8 @@
 FROM ghcr.io/bento-platform/bento_base_image:python-debian-2023.02.21
 
+# Run as root in the Dockerfile until we drop down to the service user in the entrypoint
+USER root
+
 # Use uvicorn (instead of hypercorn) in production since I've found
 # multiple benchmarks showing it to be faster - David L
 RUN pip install --no-cache-dir poetry==1.3.2 "uvicorn[standard]==0.20.0"
