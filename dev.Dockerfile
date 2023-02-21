@@ -16,7 +16,6 @@ RUN poetry install --no-root
 # Don't copy code in, since it gets mounted in with development mode.
 # Copy in an entrypoint + runner script so we have somewhere to start.
 
-COPY entrypoint.bash .
 COPY run.dev.bash .
 
 ENV CHORD_DEBUG=True
