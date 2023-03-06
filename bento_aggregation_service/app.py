@@ -54,6 +54,8 @@ class ServiceInfoHandler(RequestHandler):
         # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
 
         if not CHORD_DEBUG:
+            # Cache production service info, since no information should change
+            self.set_header("Cache-Control", "private")
             self.write({**self.SERVICE_INFO, "environment": "prod"})
             return
 
