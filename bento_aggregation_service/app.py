@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import bento_aggregation_service
 import tornado.gen
 import tornado.ioloop
@@ -42,9 +43,42 @@ class ServiceInfoHandler(RequestHandler):
         },
     }
 
+    @staticmethod
+    async def _git_stdout(*args) -> str:
+        git_proc = await asyncio.create_subprocess_exec(
+            "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        res, _ = await git_proc.communicate()
+        return res.decode().rstrip()
+
     async def get(self):
         # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
-        self.write(self.SERVICE_INFO)
+
+        if not CHORD_DEBUG:
+            # Cache production service info, since no information should change
+            self.set_header("Cache-Control", "private")
+            self.write({**self.SERVICE_INFO, "environment": "prod"})
+            return
+
+        service_info = {
+            **self.SERVICE_INFO,
+            "environment": "dev",
+        }
+
+        try:
+            if res_tag := await self._git_stdout("describe", "--tags", "--abbrev=0"):
+                # noinspection PyTypeChecker
+                service_info["bento"]["gitTag"] = res_tag
+            if res_branch := await self._git_stdout("branch", "--show-current"):
+                # noinspection PyTypeChecker
+                service_info["bento"]["gitBranch"] = res_branch
+            if res_commit := await self._git_stdout("rev-parse", "HEAD"):
+                # noinspection PyTypeChecker
+                service_info["bento"]["gitCommit"] = res_commit
+
+        except Exception as e:
+            logger.warning(f"Could not retrieve git information: {type(e).__name__}")
+
+        self.write(service_info)
 
 
 class Application(tornado.web.Application):
