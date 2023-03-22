@@ -2,13 +2,10 @@
 
 cd /aggregation || exit
 
-# Set .gitconfig for development
-/set_gitconfig.bash
+# The default base image entrypoint takes care of creating bento_user and configuring git
 
-source /env/bin/activate
-
-# Update dependencies and install module locally (similar to pip install -e: "editable mode")
-poetry install
+# Update dependencies and install module locally
+/poetry_user_install_dev.bash
 
 export BENTO_DEBUG=true
 export CHORD_DEBUG=true
