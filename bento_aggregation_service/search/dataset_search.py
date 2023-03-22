@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import itertools
 import json
+import sys
+
 import tornado.gen
 
 from bento_lib.search.queries import Query
@@ -194,6 +196,9 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
                 extra_headers=DATASET_SEARCH_HEADERS
             )))
             # TODO: Handle HTTP errors
+
+        except Exception as e:
+            print(f"Encountered error while trying to fetch table {t.get('table_id')}: {str(e)}", file=sys.stderr)
 
         finally:
             table_queue.task_done()
