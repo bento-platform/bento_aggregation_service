@@ -1,5 +1,16 @@
 FROM ghcr.io/bento-platform/bento_base_image:python-debian-2023.03.21
 
+LABEL org.opencontainers.image.description="Local development image the Bento aggregation service."
+LABEL devcontainer.metadata='[{ \
+  "remoteUser": "bento_user", \
+  "customizations": { \
+    "vscode": { \
+      "extensions": ["ms-python.python", "eamodio.gitlens"], \
+      "settings": {"workspaceFolder": "/aggregation"} \
+    } \
+  } \
+}]'
+
 # Run as root in the Dockerfile until we drop down to the service user in the entrypoint
 USER root
 
