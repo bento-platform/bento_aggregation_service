@@ -2,8 +2,7 @@
 
 cd /aggregation || exit
 
-# Set .gitconfig for development
-/set_gitconfig.bash
+# The default base image entrypoint takes care of creating bento_user and configuring git
 
 # Update dependencies and install module locally
 /poetry_user_install_dev.bash
