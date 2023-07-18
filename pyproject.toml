@@ -21,6 +21,8 @@ classifiers = [
 python = "^3.10.0"
 bento-lib = "^5.4.0"
 tornado = "^6.2"
+fastapi = "^0.100.0"
+pydantic-settings = "^2.0.2"
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.2.7"
