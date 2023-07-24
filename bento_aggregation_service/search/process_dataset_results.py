@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from collections.abc import Iterable
 
 from typing import Any, Optional
 
-from bento_aggregation_service.constants import CHORD_DEBUG
-from bento_aggregation_service.logger import logger
+from bento_aggregation_service.config import Config
 
 
 __all__ = [
@@ -171,6 +172,10 @@ def process_dataset_results(
     dataset: dict,
     dataset_object_schema: dict,
     include_internal_data: bool,
+    # dependencies
+    config: Config,
+    logger: logging.Logger,
+    # args w/ defaults
     ic_paths_to_filter: Optional[list[str]] = None,
     always_yield: bool = False,
 ):
@@ -192,8 +197,9 @@ def process_dataset_results(
             join_query_ast, dataset_results, dataset_object_schema,
             internal=True,
             return_all_index_combinations=include_internal_data,
-            secure_errors=not CHORD_DEBUG,
-            skip_schema_validation=not CHORD_DEBUG,  # Schema validation adds a lot of slowdown but helps debugging.
+            secure_errors=not config.bento_debug,
+            # Schema validation adds a lot of slowdown but helps debugging:
+            skip_schema_validation=not config.bento_debug,
         )
 
         if isinstance(ic, Iterable):

@@ -1,5 +1,7 @@
 import itertools
 import json
+import logging
+
 import tornado.gen
 
 from bento_lib.search.queries import Query
@@ -8,8 +10,7 @@ from tornado.queues import Queue
 
 from typing import Dict, List, Optional, Set, Tuple
 
-from bento_aggregation_service.constants import WORKERS, USE_GOHAN
-from bento_aggregation_service.logger import logger
+from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.utils import bento_fetch, iterable_to_queue
 from .constants import DATASET_SEARCH_HEADERS
@@ -49,7 +50,11 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
             _linked_field_set_to_join_query_rec(pairs[1:])]
 
 
-def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data_type_set: Set[str]) -> Optional[Query]:
+def _linked_field_sets_to_join_query(
+    linked_field_sets: LinkedFieldSetList,
+    data_type_set: set[str],
+    logger: logging.Logger,
+) -> Query | None:
     """
     Recursive function to add joins between linked fields.
     It recurses through the sets of linked fields.
@@ -81,9 +86,11 @@ def _linked_field_sets_to_join_query(linked_field_sets: LinkedFieldSetList, data
 
     # Recurse on the next linked field set, building up the #and query.
 
-    return ["#and",
-            _linked_field_set_to_join_query_rec(pairs),
-            _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set)]
+    return [
+        "#and",
+        _linked_field_set_to_join_query_rec(pairs),
+        _linked_field_sets_to_join_query(linked_field_sets[1:], data_type_set, logger),
+    ]
 
 
 def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
@@ -94,7 +101,7 @@ def _get_dataset_linked_field_sets(dataset: dict) -> LinkedFieldSetList:
     ]
 
 
-def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
+def _augment_resolves(query: Query, prefix: tuple[str, ...]) -> Query:
     """
     Recursive function that prepends every #resolve list in the query AST
     with the given prefix (a data-type such as `phenopacket`).
@@ -109,7 +116,11 @@ def _augment_resolves(query: Query, prefix: Tuple[str, ...]) -> Query:
     return [query[0], *(_augment_resolves(q, prefix) for q in query[1:])]
 
 
-def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Dict[str, Query]) -> Query:
+def _combine_join_and_data_type_queries(
+    join_query: Query | None,
+    data_type_queries: dict[str, Query],
+    logger: logging.Logger,
+) -> Query | None:
     if join_query is None:
         return None
 
@@ -127,7 +138,7 @@ def _combine_join_and_data_type_queries(join_query: Query, data_type_queries: Di
     return join_query
 
 
-def _get_array_resolve_paths(query: Query) -> List[str]:
+def _get_array_resolve_paths(query: Query) -> list[str]:
     """
     Collect string representations array resolve paths without the trailing [item] resolution from a query. This can
     facilitate determining which index combinations will appear; and can be used as a step in filtering results by
@@ -156,8 +167,13 @@ def _get_array_resolve_paths(query: Query) -> List[str]:
     return []
 
 
-async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Optional[str],
-                                         table_ownerships_and_records: List[Tuple[dict, dict]]):
+async def _fetch_table_definition_worker(
+    table_queue: Queue,
+    auth_header: str | None,
+    table_ownerships_and_records: list[tuple[dict, dict]],
+    config: Config,
+    logger: logging.Logger,
+):
     """
     Impure function.
     Fetches the searcheable schema for each table by querying their corresponding
@@ -177,7 +193,7 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
         try:
             # - Gohan compatibility
             # TODO: formalize/clean this up
-            if USE_GOHAN and service_kind == "variant":
+            if config.use_gohan and service_kind == "variant":
                 service_kind = "gohan"
 
             # Setup up pre-requisites
@@ -209,12 +225,13 @@ async def _fetch_table_definition_worker(table_queue: Queue, auth_header: Option
 async def _table_search_worker(
     table_queue: Queue,
     dataset_join_query: Query,
-    data_type_queries: Dict[str, Query],
-    target_linked_fields: Optional[DictOfDataTypesAndFields],
+    data_type_queries: dict[str, Query],
+    target_linked_fields: DictOfDataTypesAndFields | None,
     include_internal_results: bool,
-    auth_header: Optional[str],
+    auth_header: str | None,
     dataset_object_schema: dict,
-    dataset_linked_fields_results: List[set],
+    dataset_linked_fields_results: list[set],
+    config: Config,
 ):
     """
     Impure async function.
@@ -284,7 +301,7 @@ async def _table_search_worker(
             # - Gohan compatibility
             # TODO: formalize/clean this up
             # TODO: cleanup note: json.loads(json.dumps()) seems dubious, url_args was a tuple and becomes a list
-            is_using_gohan = USE_GOHAN and table_ownership["service_artifact"] == "gohan"
+            is_using_gohan = config.use_gohan and table_ownership["service_artifact"] == "gohan"
             if is_using_gohan:
                 # reset path_fragment:
                 path_fragment = "api/gohan/variants/get/by/variantId"
@@ -341,7 +358,7 @@ async def _table_search_worker(
 
 def _get_linked_field_for_query(
     linked_field_sets: LinkedFieldSetList,
-    data_type_queries: Dict[str, Query]
+    data_type_queries: dict[str, Query]
 ) -> Optional[DictOfDataTypesAndFields]:
     """
     Given the linked field sets that are defined for a given Dataset, and a
@@ -361,10 +378,12 @@ async def run_search_on_dataset(
     dataset_object_schema: dict,
     dataset: dict,
     join_query: Query,
-    data_type_queries: Dict[str, Query],
-    exclude_from_auto_join: Tuple[str, ...],
+    data_type_queries: dict[str, Query],
+    exclude_from_auto_join: tuple[str, ...],
     include_internal_results: bool,
-    auth_header: Optional[str] = None,
+    config: Config,
+    logger: logging.Logger,
+    auth_header: str | None = None,
 ) -> Dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
@@ -380,8 +399,8 @@ async def run_search_on_dataset(
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
 
     table_definition_workers = tornado.gen.multi([
-        _fetch_table_definition_worker(table_ownership_queue, auth_header, table_ownerships_and_records)
-        for _ in range(WORKERS)
+        _fetch_table_definition_worker(table_ownership_queue, auth_header, table_ownerships_and_records, config, logger)
+        for _ in range(config.workers)
     ])
     await table_ownership_queue.join()
 
@@ -421,14 +440,14 @@ async def run_search_on_dataset(
             # Could re-return None; pass set of all data types (keys of the data type queries)
             # to filter out combinations
             join_query = _linked_field_sets_to_join_query(
-                linked_field_sets, set(data_type_queries) - excluded_data_types)
+                linked_field_sets, set(data_type_queries) - excluded_data_types, logger)
 
         # Combine the join query with the data type queries, fixing resolves to be consistent
-        join_query = _combine_join_and_data_type_queries(join_query, data_type_queries)
+        join_query = _combine_join_and_data_type_queries(join_query, data_type_queries, logger)
 
     finally:
         # Trigger exit for all table definition workers
-        for _ in range(WORKERS):
+        for _ in range(config.workers):
             table_ownership_queue.put_nowait(None)
 
         # Wait for table definition workers to exit
@@ -474,14 +493,15 @@ async def run_search_on_dataset(
                 auth_header,
                 dataset_object_schema,
                 dataset_linked_fields_results,
+                config,
             )
-            for _ in range(WORKERS)
+            for _ in range(config.workers)
         ])
 
         await table_pairs_queue.join()
 
         # Trigger exit for all table search workers
-        for _ in range(WORKERS):
+        for _ in range(config.workers):
             table_pairs_queue.put_nowait(None)
 
         # Wait for table search workers to exit

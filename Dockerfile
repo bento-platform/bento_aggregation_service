@@ -29,4 +29,4 @@ COPY run.py .
 RUN poetry install --without dev
 
 # Use base image entrypoint for dropping down into bento_user & running this CMD
-CMD [ "python3", "run.py" ]
+CMD ["bash", "./run.bash"]

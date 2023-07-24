@@ -8,13 +8,11 @@ from tornado.queues import Queue
 from typing import Iterable, Optional, Tuple, Union
 from urllib.parse import urljoin
 
-from .constants import CHORD_DEBUG, CHORD_URL, TIMEOUT
-from .logger import logger
+from .constants import TIMEOUT
 
 
 __all__ = [
     "bento_fetch",
-    "get_request_json",
     "iterable_to_queue",
     "get_auth_header",
 ]
@@ -61,17 +59,6 @@ async def bento_fetch(
     logger.debug(f"{ql} error response: {r.code} {r.body}" if r.code >= 400 else f"{ql} response code: {r.code}")
 
     return json.loads(r.body) if r.code != 204 else None
-
-
-def get_request_json(request_body: bytes) -> Optional[dict]:
-    try:
-        request = json.loads(request_body)
-        # TODO: Validate against a JSON schema or OpenAPI
-        return request if isinstance(request, dict) else None
-    except json.JSONDecodeError:
-        pass
-
-    # Otherwise, return None implicitly
 
 
 def iterable_to_queue(iterable: Iterable) -> Queue:

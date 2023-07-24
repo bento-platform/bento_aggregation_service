@@ -28,8 +28,14 @@ class Config(BaseSettings):
     service_id: str = str(":".join(list(SERVICE_TYPE.values())[:2]))
     service_url: str = "http://127.0.0.1:5000"  # base URL to construct object URIs from
 
+    workers: int = 4
+
     bento_authz_service_url: str  # Bento authorization service base URL
     authz_enabled: bool = True
+
+    # Other services - settings and flags
+    use_gohan: bool = False
+    katsu_url: str
 
     cors_origins: tuple[str, ...] = ()
 
