@@ -14,8 +14,6 @@ from pydantic import BaseModel
 from tornado.queues import Queue
 from urllib.parse import urljoin
 
-from typing import Optional
-
 from bento_aggregation_service.config import Config, ConfigDependency
 from bento_aggregation_service.logger import LoggerDependency
 
@@ -40,7 +38,7 @@ async def search_worker(
     join_query,
     data_type_queries,
     exclude_from_auto_join: tuple[str, ...],
-    auth_header: Optional[str],
+    auth_header: str | None,
 
     # Output references
     dataset_objects_dict: dict,

@@ -156,7 +156,7 @@ def _filter_results_by_index_combinations(
 
 def _filter_results_by_index_combinations_if_set(
     dataset_results: dict[str, list],
-    index_combinations: Optional[tuple[dict, ...]],
+    index_combinations: tuple[dict, ...] | None,
     ic_paths_to_filter: list[str],
 ) -> dict[str, list]:
     if index_combinations is None:

@@ -8,8 +8,6 @@ from bento_lib.search.queries import Query
 from tornado.httpclient import AsyncHTTPClient
 from tornado.queues import Queue
 
-from typing import Dict, List, Optional, Set, Tuple
-
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.utils import bento_fetch, iterable_to_queue
@@ -21,10 +19,10 @@ __all__ = [
 ]
 
 
-FieldSpec = List[str]
-DataTypeAndField = Tuple[str, FieldSpec]
-DictOfDataTypesAndFields = Dict[str, FieldSpec]
-LinkedFieldSetList = List[DictOfDataTypesAndFields]
+FieldSpec = list[str]
+DataTypeAndField = tuple[str, FieldSpec]
+DictOfDataTypesAndFields = dict[str, FieldSpec]
+LinkedFieldSetList = list[DictOfDataTypesAndFields]
 
 
 def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: DataTypeAndField) -> Query:
@@ -359,7 +357,7 @@ async def _table_search_worker(
 def _get_linked_field_for_query(
     linked_field_sets: LinkedFieldSetList,
     data_type_queries: dict[str, Query]
-) -> Optional[DictOfDataTypesAndFields]:
+) -> DictOfDataTypesAndFields | None:
     """
     Given the linked field sets that are defined for a given Dataset, and a
     query definition, returns the first set of linked fields that is
@@ -384,9 +382,9 @@ async def run_search_on_dataset(
     config: Config,
     logger: logging.Logger,
     auth_header: str | None = None,
-) -> Dict[str, list]:
+) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
-    target_linked_field: Optional[DictOfDataTypesAndFields] = _get_linked_field_for_query(
+    target_linked_field: DictOfDataTypesAndFields | None = _get_linked_field_for_query(
         linked_field_sets, data_type_queries)
 
     logger.debug(f"Linked field sets: {linked_field_sets}")
@@ -394,7 +392,7 @@ async def run_search_on_dataset(
 
     # Pairs of table ownership records, from the metadata service, and table properties,
     # from each data service to which the table belongs
-    table_ownerships_and_records: List[Tuple[dict, dict]] = []
+    table_ownerships_and_records: list[tuple[dict, dict]] = []
 
     table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
 
@@ -407,13 +405,13 @@ async def run_search_on_dataset(
     try:
         logger.debug(f"Table ownership and records: {table_ownerships_and_records}")
 
-        table_data_types: Set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
+        table_data_types: set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
 
         # Set of data types excluded from building the join query
         # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
         #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
         #   to match
-        excluded_data_types: Set[str] = set(exclude_from_auto_join)
+        excluded_data_types: set[str] = set(exclude_from_auto_join)
 
         if excluded_data_types:
             logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
@@ -479,7 +477,7 @@ async def run_search_on_dataset(
         }
 
     else:
-        dataset_linked_fields_results: List[set] = []
+        dataset_linked_fields_results: list[set] = []
 
         table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
 
