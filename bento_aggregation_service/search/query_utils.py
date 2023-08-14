@@ -67,7 +67,7 @@ def prune_non_gohan_paramters(list_pairs):
             list_pairs.remove(p)
 
 
-def construct_gohan_query_params(ast: list, supplemental_args: list[list[str]]):
+def construct_gohan_query_params(ast: list, supplemental_args: list[tuple[str, str]]):
     # somehow convert AST to a simple list of lists/strings/ints
     # converted_ast = [] # temp
 

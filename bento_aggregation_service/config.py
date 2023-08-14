@@ -36,6 +36,7 @@ class Config(BaseSettings):
     # Other services - settings and flags
     use_gohan: bool = False
     katsu_url: str
+    service_registry_url: str  # used for fetching list of data services so we can get data type providers
 
     cors_origins: tuple[str, ...] = ()
 

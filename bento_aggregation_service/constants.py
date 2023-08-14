@@ -31,7 +31,7 @@ def _env_to_bool(var: str, default: bool = False) -> bool:
 
 def _env_url_trailing_slash(var: str) -> str:
     """
-    Hack in a ubiquitous trailing slash by appending it to an rstripped version
+    Hack in a ubiquitous trailing slash by appending it to an r-stripped version
     and lstripping the / to remove it if the URL is blank.
     :param var: The environment variable for the URL value
     :return: A trailing-slash-guaranteed version, or blank.

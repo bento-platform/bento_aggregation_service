@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import logging
-
-import tornado.gen
 import traceback
 
 from aiohttp import ClientSession
@@ -11,7 +9,6 @@ from bento_lib.search.queries import Query
 from fastapi import APIRouter, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from tornado.queues import Queue
 from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config, ConfigDependency

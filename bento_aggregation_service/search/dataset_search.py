@@ -1,16 +1,13 @@
+import aiohttp
 import itertools
 import json
 import logging
 
-import tornado.gen
-
 from bento_lib.search.queries import Query
-from tornado.httpclient import AsyncHTTPClient
-from tornado.queues import Queue
 
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
-from bento_aggregation_service.utils import bento_fetch, iterable_to_queue
+from bento_aggregation_service.service_manager import ServiceManager
 from .constants import DATASET_SEARCH_HEADERS
 
 
@@ -165,63 +162,8 @@ def _get_array_resolve_paths(query: Query) -> list[str]:
     return []
 
 
-async def _fetch_table_definition_worker(
-    table_queue: Queue,
-    auth_header: str | None,
-    table_ownerships_and_records: list[tuple[dict, dict]],
-    config: Config,
-    logger: logging.Logger,
-):
-    """
-    Impure function.
-    Fetches the searcheable schema for each table by querying their corresponding
-    service.
-    The result is stored in the table_ownerships_and_records var as a tuple of
-    table_ownership (table_id and hosting service), and table definition (data_type, schema,...)
-    """
-    client = AsyncHTTPClient()
-
-    async for t in table_queue:
-        if t is None:
-            # Exit signal
-            return
-
-        service_kind = t["service_artifact"]  # TODO: this should eventually be migrated to service_kind or something...
-
-        try:
-            # - Gohan compatibility
-            # TODO: formalize/clean this up
-            if config.use_gohan and service_kind == "variant":
-                service_kind = "gohan"
-
-            # Setup up pre-requisites
-            url = f"api/{service_kind}/tables/{t['table_id']}"
-
-            logger.debug(f"Table URL fragment: {url}")
-
-            # TODO: Don't fetch schema except for first time?
-            table_record = await bento_fetch(
-                client,
-                url,
-                method="GET",
-                auth_header=auth_header,  # Required, otherwise may hit a 403 error
-                extra_headers=DATASET_SEARCH_HEADERS
-            )
-
-            if isinstance(table_record, dict):
-                table_ownerships_and_records.append((t, table_record))
-            else:
-                logger.error(f"Encountered malformatted table record from {service_kind} (will skip): {table_record}")
-
-        except Exception as e:
-            logger.error(f"Encountered error while trying to fetch table record from {service_kind}: {e}")
-
-        finally:
-            table_queue.task_done()
-
-
-async def _table_search_worker(
-    table_queue: Queue,
+async def _run_search(
+    dataset_id: str,
     dataset_join_query: Query,
     data_type_queries: dict[str, Query],
     target_linked_fields: DictOfDataTypesAndFields | None,
@@ -230,6 +172,8 @@ async def _table_search_worker(
     dataset_object_schema: dict,
     dataset_linked_fields_results: list[set],
     config: Config,
+    service_manager: ServiceManager,
+    session: aiohttp.ClientSession,
 ):
     """
     Impure async function.
@@ -249,109 +193,101 @@ async def _table_search_worker(
     are not shared reference but rely on intermediary copies (not sure about what
     the issue is, but it looks "dangerous")
     """
-    client = AsyncHTTPClient()
 
-    async for table_pair in table_queue:
-        if table_pair is None:
-            # Exit signal
-            return
+    data_type_entries = await service_manager.fetch_data_types()
 
-        try:
-            table_ownership, table_record = table_pair
-            table_data_type = table_record["data_type"]
-            # True is a value used instead of the AST string to return the whole
-            # datatype related data without any filtering. For perf. reasons
-            # this is unneeded when doing a search
-            is_querying_data_type = (table_data_type in data_type_queries
-                                     and not data_type_queries[table_data_type] is True)
+    for data_type in data_type_queries.keys():
+        # True is a value used instead of the AST string to return the whole
+        # datatype related data without any filtering. For perf. reasons
+        # this is unneeded when doing a search
+        is_querying_data_type = not data_type_queries[data_type] is True
 
-            # Don't need to fetch results for joining if the join query is None; just check
-            # individual tables (which is much faster) using the public discovery endpoint.
-            private = dataset_join_query is not None or include_internal_results
+        # Don't need to fetch results for joining if the join query is None; just check
+        # individual tables (which is much faster) using the public discovery endpoint.
+        private = dataset_join_query is not None or include_internal_results
 
-            if dataset_join_query is not None and table_data_type not in dataset_object_schema["properties"]:
-                # Since we have a join query, we need to create a superstructure containing
-                # different search results and a schema to match.
+        data_type_entry = data_type_entries[data_type]
 
-                # Set schema for data type if needed
-                dataset_object_schema["properties"][table_data_type] = {
-                    "type": "array",
-                    "items": table_record["schema"] if is_querying_data_type else {}
-                }
+        if dataset_join_query is not None and data_type not in dataset_object_schema["properties"]:
+            # Since we have a join query, we need to create a superstructure containing
+            # different search results and a schema to match.
 
-            # If data type is not being queried, its results are irrelevant
-            if not is_querying_data_type:
-                continue
+            # Set schema for data type if needed
+            dataset_object_schema["properties"][data_type] = {
+                "type": "array",
+                "items": data_type_entry.data_type_listing.schema if is_querying_data_type else {}
+            }
 
-            # Setup up search pre-requisites
-            # - defaults:
-            path_fragment = (
-                f"api/{table_ownership['service_artifact']}{'/private' if private else ''}/tables"
-                f"/{table_record['id']}/search"
-            )
-            url_args = (("query", json.dumps(data_type_queries[table_data_type])),)
+        # If data type is not being queried, its results are irrelevant
+        if not is_querying_data_type:
+            continue
 
-            # WIP: if no linked fields have been defined, the search can still be made?
-            if target_linked_fields:
-                url_args += (("field", json.dumps(target_linked_fields[table_data_type])),
-                             ("output", "values_list"))
+        # Setup up search pre-requisites
+        # - defaults:
+        search_path = f"{data_type_entry.service_base_url}/datasets/{dataset_id}/search"
+        url_args = [("query", json.dumps(data_type_queries[data_type]))]
 
-            # - Gohan compatibility
-            # TODO: formalize/clean this up
-            # TODO: cleanup note: json.loads(json.dumps()) seems dubious, url_args was a tuple and becomes a list
-            is_using_gohan = config.use_gohan and table_ownership["service_artifact"] == "gohan"
+        # WIP: if no linked fields have been defined, the search can still be made?
+        if target_linked_fields:
+            url_args.extend((
+                ("field", json.dumps(target_linked_fields[data_type])),
+                ("output", "values_list"),
+            ))
+
+        # - Gohan compatibility
+        # TODO: formalize/clean this up
+        # TODO: cleanup note: json.loads(json.dumps()) seems dubious, url_args was a tuple and becomes a list
+        is_using_gohan = config.use_gohan and data_type == "variant"
+
+        if is_using_gohan:
+            # reset path_fragment:
+            search_path = f"{data_type_entry.service_base_url}/api/gohan/variants/get/by/variantId"
+
+            # reset url_args:
+            # - construct based on search query
+            supplemental_url_args = [("getSampleIdsOnly", "true")]
+            # - transform custom Query to list of lists to simplify
+            #   the gohan query parameter construction
+            reloaded_converted = json.loads(json.dumps(data_type_queries[data_type]))
+            # - generate query parameters from list of query tree objects
+            url_args = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
+
+        # Run the search
+
+        res = await session.get(
+            search_path,
+            params=url_args,
+            headers={
+                **({"Authorization": auth_header} if auth_header else {}),
+                **DATASET_SEARCH_HEADERS,
+            }
+        )
+        r = await res.json()
+
+        if private:
+            ids = r["results"]
             if is_using_gohan:
-                # reset path_fragment:
-                path_fragment = "api/gohan/variants/get/by/variantId"
+                # the gohan results object has to be flattened to a list of sample_id from
+                # [{
+                #   "assembly":...,
+                #   "calls": [{
+                #               "sample_id": "HG00106",
+                #               "genotype_type": "HETEROZYGOUS"
+                #             },...
+                #           ]
+                # },...]
+                ids = [
+                    call["sample_id"]
+                    for r in ids
+                    for call in r["calls"]
+                ]
+            # We have a results array to account for
+            results = {id_ for id_ in ids if id_ is not None}
+        else:
+            # Here, the array of 1 True is a dummy value to give a positive result
+            results = {r} if r else set()
 
-                # reset url_args:
-                # - construct based on search query
-                supplemental_url_args = [["getSampleIdsOnly", "true"]]
-                # - transform custom Query to list of lists to simplify
-                #   the gohan query parameter construction
-                tmpjson = json.dumps({"tmpkey": data_type_queries[table_data_type]})
-                reloaded_converted = json.loads(tmpjson)["tmpkey"]
-                # - generate query parameters from list of query tree objects
-                gohan_query_params = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
-                url_args = gohan_query_params
-
-            # Run the search
-            r = await bento_fetch(
-                client,
-                path_fragment=path_fragment,
-                url_args=url_args,
-                method="GET",
-                auth_header=auth_header,  # Required in some cases to not get a 403
-                extra_headers=DATASET_SEARCH_HEADERS,
-            )
-
-            if private:
-                ids = r["results"]
-                if is_using_gohan:
-                    # the gohan results object has to be flattened to a list of sample_id from
-                    # [{
-                    #   "assembly":...,
-                    #   "calls": [{
-                    #               "sample_id": "HG00106",
-                    #               "genotype_type": "HETEROZYGOUS"
-                    #             },...
-                    #           ]
-                    # },...]
-                    ids = [
-                        call["sample_id"]
-                        for r in ids
-                        for call in r["calls"]
-                    ]
-                # We have a results array to account for
-                results = {id_ for id_ in ids if id_ is not None}
-            else:
-                # Here, the array of 1 True is a dummy value to give a positive result
-                results = {r} if r else set()
-
-            dataset_linked_fields_results.append(results)
-
-        finally:
-            table_queue.task_done()
+        dataset_linked_fields_results.append(results)
 
 
 def _get_linked_field_for_query(
@@ -381,75 +317,58 @@ async def run_search_on_dataset(
     include_internal_results: bool,
     config: Config,
     logger: logging.Logger,
+    service_manager: ServiceManager,
     auth_header: str | None = None,
 ) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: DictOfDataTypesAndFields | None = _get_linked_field_for_query(
         linked_field_sets, data_type_queries)
 
+    dataset_id: str = dataset["identifier"]
+
     logger.debug(f"Linked field sets: {linked_field_sets}")
-    logger.debug(f"Dataset: {dataset['identifier']}")
+    logger.debug(f"Dataset: {dataset_id}")
 
-    # Pairs of table ownership records, from the metadata service, and table properties,
-    # from each data service to which the table belongs
-    table_ownerships_and_records: list[tuple[dict, dict]] = []
+    # Set of data types excluded from building the join query
+    # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
+    #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
+    #   to match
+    excluded_data_types: set[str] = set(exclude_from_auto_join)
 
-    table_ownership_queue = iterable_to_queue(dataset["table_ownership"])   # queue containing table ids
+    if excluded_data_types:
+        logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
 
-    table_definition_workers = tornado.gen.multi([
-        _fetch_table_definition_worker(table_ownership_queue, auth_header, table_ownerships_and_records, config, logger)
-        for _ in range(config.workers)
-    ])
-    await table_ownership_queue.join()
+    # TODO: fetch dataset data types
+    dataset_data_types = []
 
-    try:
-        logger.debug(f"Table ownership and records: {table_ownerships_and_records}")
+    # TODO: fetch schemas for data types in dataset
 
-        table_data_types: set[str] = {t[1]["data_type"] for t in table_ownerships_and_records}
+    for dt, dt_q in filter(lambda dt2: dt2[0] not in dataset_data_types, data_type_queries.items()):
+        # If there are no data of a particular data type, we don't get the schema. If this
+        # happens, return no results unless the query is hard-coded to be True, in which
+        # case put in a fake schema.
+        # TODO: Come up with something more elegant/intuitive here - a way to resolve data types?
+        # TODO: This may sometimes return the wrong result - should check for resolves instead
 
-        # Set of data types excluded from building the join query
-        # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
-        #   tables present, effectively functioning as a 'full join' where the excluded data types are not guaranteed
-        #   to match
-        excluded_data_types: set[str] = set(exclude_from_auto_join)
+        # This CANNOT be simplified to "if not dt_q:"; other truth-y values don't have the
+        # same meaning (sorry Guido).
+        if dt_q is not True:
+            return {dt2: [] for dt2 in data_type_queries}
 
-        if excluded_data_types:
-            logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
+        # Give it a boilerplate array schema and result set; there won't be anything there anyway
+        dataset_object_schema["properties"][dt] = {"type": "array"}
+        excluded_data_types.add(dt)
 
-        for dt, dt_q in filter(lambda dt2: dt2[0] not in table_data_types, data_type_queries.items()):
-            # If there are no tables of a particular data type, we don't get the schema. If this
-            # happens, return no results unless the query is hard-coded to be True, in which
-            # case put in a fake schema.
-            # TODO: Come up with something more elegant/intuitive here - a way to resolve data types?
-            # TODO: This may sometimes return the wrong result - should check for resolves instead
+        logger.debug(f"Excluding data type from join: {dt}")
 
-            # This CANNOT be simplified to "if not dt_q:"; other truth-y values don't have the
-            # same meaning (sorry Guido).
-            if dt_q is not True:
-                return {dt2: [] for dt2 in data_type_queries}
+    if join_query is None:
+        # Could re-return None; pass set of all data types (keys of the data type queries)
+        # to filter out combinations
+        join_query = _linked_field_sets_to_join_query(
+            linked_field_sets, set(data_type_queries) - excluded_data_types, logger)
 
-            # Give it a boilerplate array schema and result set; there won't be anything there anyway
-            dataset_object_schema["properties"][dt] = {"type": "array"}
-            excluded_data_types.add(dt)
-
-            logger.debug(f"Excluding data type from join: {dt}")
-
-        if join_query is None:
-            # Could re-return None; pass set of all data types (keys of the data type queries)
-            # to filter out combinations
-            join_query = _linked_field_sets_to_join_query(
-                linked_field_sets, set(data_type_queries) - excluded_data_types, logger)
-
-        # Combine the join query with the data type queries, fixing resolves to be consistent
-        join_query = _combine_join_and_data_type_queries(join_query, data_type_queries, logger)
-
-    finally:
-        # Trigger exit for all table definition workers
-        for _ in range(config.workers):
-            table_ownership_queue.put_nowait(None)
-
-        # Wait for table definition workers to exit
-        await table_definition_workers
+    # Combine the join query with the data type queries, fixing resolves to be consistent
+    join_query = _combine_join_and_data_type_queries(join_query, data_type_queries, logger)
 
     # ------------------------- Start running search on tables -------------------------
 
@@ -461,6 +380,8 @@ async def run_search_on_dataset(
     # INNER JOIN: when there is no join possible between the tables, there is
     # no result that can be displayed.
 
+    # TODO: This whole thing is a hack and should be removed
+
     # In the next flag, the list comprehension with filtering for lists is used
     # to take care of the case where a data_type is associated with the value
     # `True`, as no query is performed in that case.
@@ -470,20 +391,20 @@ async def run_search_on_dataset(
         len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
     )
 
-    if query_is_phenopacket_only:
-        request_body = {
-            "query": data_type_queries["phenopacket"],
-            "output": "bento_search_result"
-        }
+    # TODO: no weird override logic for specific data types!
 
-    else:
-        dataset_linked_fields_results: list[set] = []
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not config.bento_debug)) as session:
+        if query_is_phenopacket_only:
+            request_body = {
+                "query": data_type_queries["phenopacket"],
+                "output": "bento_search_result"
+            }
 
-        table_pairs_queue = iterable_to_queue(table_ownerships_and_records)
+        else:
+            dataset_linked_fields_results: list[set] = []
 
-        table_search_workers = tornado.gen.multi([
-            _table_search_worker(
-                table_pairs_queue,
+            await _run_search(
+                dataset_id,
                 join_query,
                 data_type_queries,
                 target_linked_field,
@@ -492,56 +413,47 @@ async def run_search_on_dataset(
                 dataset_object_schema,
                 dataset_linked_fields_results,
                 config,
+                service_manager,
+                session,
             )
-            for _ in range(config.workers)
-        ])
 
-        await table_pairs_queue.join()
+            # Compute the intersection between the sets of results
+            results = dataset_linked_fields_results[0]
+            for r in dataset_linked_fields_results:
+                results.intersection_update(r)
 
-        # Trigger exit for all table search workers
-        for _ in range(config.workers):
-            table_pairs_queue.put_nowait(None)
+            if not include_internal_results:
+                return {
+                    "results": list(results),
+                }
 
-        # Wait for table search workers to exit
-        await table_search_workers
+            # edge case: no result, no extra query
+            if len(results) == 0:
+                return {
+                    "results": []
+                }
 
-        # Compute the intersection between the sets of results
-        results = dataset_linked_fields_results[0]
-        for r in dataset_linked_fields_results:
-            results.intersection_update(r)
-
-        if not include_internal_results:
-            return {
-                "results": list(results),
+            request_body = {
+                "query": [
+                    "#in",
+                    ["#resolve", *target_linked_field["phenopacket"]],
+                    ["#list", *results],
+                ],
+                "output": "bento_search_result"
             }
 
-        # edge case: no result, no extra query
-        if len(results) == 0:
-            return {
-                "results": []
-            }
+        # TODO: what if no phenopacket service?
+        # Make this code more generic... Maybe, `format` and final `data-type` should
+        # be extracted from the request. If these are absent, then fetch results from
+        # every service.
 
-        request_body = {
-            "query": [
-                "#in",
-                ["#resolve", *target_linked_field["phenopacket"]],
-                ["#list", *results],
-            ],
-            "output": "bento_search_result"
-        }
-
-    table_id = next((t[1]["id"] for t in table_ownerships_and_records if t[1]["data_type"] == "phenopacket"), None)
-
-    # TODO: what if no phenopacket service?
-    # Make this code more generic... Maybe, `format` and final `data-type` should
-    # be extracted from the request. If these are absent, then fetch results from
-    # every service.
-    r = await bento_fetch(
-        AsyncHTTPClient(),
-        path_fragment=f"api/metadata/private/tables/{table_id}/search",
-        request_body=json.dumps(request_body),
-        method="POST",  # required to avoid exceeding GET parameters limit size with the list of ids
-        auth_header=auth_header,  # Required in some cases to not get a 403
-        extra_headers=DATASET_SEARCH_HEADERS,
-    )
-    return r
+        # POST required to avoid exceeding GET parameters limit size with the list of ids
+        r = await session.post(
+            f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
+            json=request_body,
+            headers={
+                **({"Authorization": auth_header} if auth_header else {}),
+                **DATASET_SEARCH_HEADERS
+            },
+        )
+        return await r.json()
