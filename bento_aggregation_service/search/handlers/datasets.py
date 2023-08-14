@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import traceback
 
@@ -13,6 +14,7 @@ from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config, ConfigDependency
 from bento_aggregation_service.logger import LoggerDependency
+from bento_aggregation_service.service_manager import ServiceManager, ServiceManagerDependency
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
@@ -27,8 +29,8 @@ dataset_search_router = APIRouter()
 
 
 async def search_worker(
-    # Input queue
-    dataset_queue: Queue,
+    # Input dataset list
+    datasets: list[dict],
 
     # Input values
     dataset_object_schema: dict,
@@ -37,25 +39,17 @@ async def search_worker(
     exclude_from_auto_join: tuple[str, ...],
     auth_header: str | None,
 
-    # Output references
-    dataset_objects_dict: dict,
-    dataset_join_queries: dict,
-
     # Dependencies
     config: Config,
     logger: logging.Logger,
+    service_manager: ServiceManager,
 
     # Flags
     include_internal_results: bool = False,
 ):
-    async for dataset in dataset_queue:
-        if dataset is None:
-            # Exit signal
-            return
-
+    async def _search_dataset(dataset: dict) -> tuple[str, dict[str, list] | None]:
+        dataset_id = dataset["identifier"]
         try:
-            dataset_id = dataset["identifier"]
-
             dataset_results = await run_search_on_dataset(
                 dataset_object_schema,
                 dataset,
@@ -65,19 +59,19 @@ async def search_worker(
                 include_internal_results,
                 config,
                 logger,
+                service_manager,
                 auth_header,
             )
-
-            dataset_objects_dict[dataset_id] = dataset_results
+            return dataset_id, dataset_results
 
         except ClientResponseError as e:  # Thrown from run_search_on_dataset
             # Metadata service error
             # TODO: Better message
             # TODO: Set error code outside worker?
             logger.error(f"Error from dataset search: {str(e)}")
+            return dataset_id, None
 
-        finally:
-            dataset_queue.task_done()
+    return {**asyncio.gather(*(_search_dataset(ds) for ds in datasets))}
 
 
 class DatasetSearchRequest(BaseModel):
@@ -97,6 +91,7 @@ async def all_datasets_search_handler(
     search_req: DatasetSearchRequest,
     config: ConfigDependency,
     logger: LoggerDependency,
+    service_manager: ServiceManagerDependency,
 ):
     results = []
 
@@ -120,39 +115,26 @@ async def all_datasets_search_handler(
         projects = await res.json()
 
         datasets_dict: dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
-        dataset_objects_dict: dict[str, dict[str, list]] = {d: {} for d in datasets_dict}
 
         dataset_object_schema = {
             "type": "object",
             "properties": {}
         }
 
-        dataset_join_queries: dict[str, Query] = {d: None for d in datasets_dict}
-
-        dataset_queue = Queue()
-        for dataset in datasets_dict.values():
-            dataset_queue.put_nowait(dataset)
-
         # Spawn workers to handle asynchronous requests to various datasets
-        search_workers = tornado.gen.multi([
-            search_worker(
-                dataset_queue,
+        dataset_objects_dict = await search_worker(
+            list(datasets_dict.values()),
 
-                dataset_object_schema,
-                search_req.join_query,
-                search_req.data_type_queries,
-                search_req.exclude_from_auto_join,
-                auth_header,
+            dataset_object_schema,
+            search_req.join_query,
+            search_req.data_type_queries,
+            search_req.exclude_from_auto_join,
+            auth_header,
 
-                dataset_objects_dict,
-                dataset_join_queries,
-
-                config,
-                logger,
-            )
-            for _ in range(config.workers)
-        ])
-        await dataset_queue.join()
+            config,
+            logger,
+            service_manager,
+        )
 
         logger.info("Done fetching individual service search results.")
 
@@ -165,15 +147,7 @@ async def all_datasets_search_handler(
                     "results": {}
                 })
 
-        try:
-            return {"results": results}
-        finally:
-            # Trigger exit for all search workers
-            for _ in range(config.workers):
-                dataset_queue.put_nowait(None)
-
-            # Wait for workers to exit
-            await search_workers
+        return {"results": results}
 
     except ClientResponseError as e:
         # Metadata service error
@@ -200,6 +174,7 @@ async def dataset_search_handler(
     dataset_id: str,
     config: ConfigDependency,
     logger: LoggerDependency,
+    service_manager: ServiceManagerDependency,
 ):
     auth_header = request.headers.get("Authorization")
 
@@ -233,6 +208,7 @@ async def dataset_search_handler(
             include_internal_results=True,
             config=config,
             logger=logger,
+            service_manager=service_manager,
             auth_header=auth_header,
         )
 
