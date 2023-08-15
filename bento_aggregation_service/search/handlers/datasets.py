@@ -112,7 +112,7 @@ async def all_datasets_search_handler(
         # TODO: Handle pagination
         # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
 
-        logger.debug(f"fetching projects from Katsu")
+        logger.debug("fetching projects from Katsu")
         res = await http_session.get(
             urljoin(config.katsu_url, "api/projects"),
             headers=forward_auth_and_host(request),
