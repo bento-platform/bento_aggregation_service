@@ -34,7 +34,7 @@ jobs:
       run: python -m poetry install
 
     - name: Test
-      run: coverage run -m unittest -v
+      run: poetry run coverage run -m unittest -v
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
