@@ -17,7 +17,6 @@ from bento_aggregation_service.http_session import HTTPSessionDependency
 from bento_aggregation_service.logger import LoggerDependency
 from bento_aggregation_service.service_manager import ServiceManager, ServiceManagerDependency
 
-from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
 from ..query_utils import forward_auth_and_host, test_queries
 
