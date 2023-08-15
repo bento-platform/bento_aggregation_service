@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
+from fastapi import Request
 from typing import Iterable
 
 
 __all__ = [
+    "forward_auth_and_host",
     "test_queries",
 ]
+
+
+def forward_auth_and_host(request: Request) -> dict[str, str]:
+    auth = request.headers.get("Authorization")
+    return {
+        **({"Authorization": auth} if auth is not None else {}),
+        "Host": request.client.host,
+    }
 
 
 def test_queries(queries: Iterable[Query]) -> None:

@@ -19,7 +19,7 @@ from bento_aggregation_service.service_manager import ServiceManager, ServiceMan
 
 from ..constants import DATASET_SEARCH_HEADERS
 from ..dataset_search import run_search_on_dataset
-from ..query_utils import test_queries
+from ..query_utils import forward_auth_and_host, test_queries
 
 
 __all__ = [
@@ -38,12 +38,12 @@ async def search_worker(
     join_query,
     data_type_queries,
     exclude_from_auto_join: tuple[str, ...],
-    auth_header: str | None,
 
     # Dependencies
     config: Config,
     http_session: ClientSession,
     logger: logging.Logger,
+    request: Request,
     service_manager: ServiceManager,
 
     # Flags
@@ -62,8 +62,8 @@ async def search_worker(
                 config,
                 http_session,
                 logger,
+                request,
                 service_manager,
-                auth_header,
             )
             return dataset_id, dataset_results
 
@@ -99,8 +99,6 @@ async def all_datasets_search_handler(
 ):
     results = []
 
-    auth_header = request.headers.get("Authorization")
-
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
@@ -108,13 +106,12 @@ async def all_datasets_search_handler(
         # TODO: Handle pagination
         # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
 
-        async with ClientSession() as s:
-            logger.debug(f"fetching projects from Katsu")
-            res = await s.get(
-                urljoin(config.katsu_url, "api/projects"),
-                headers={"Authorization": auth_header, **DATASET_SEARCH_HEADERS},
-                raise_for_status=True,
-            )
+        logger.debug(f"fetching projects from Katsu")
+        res = await http_session.get(
+            urljoin(config.katsu_url, "api/projects"),
+            headers=forward_auth_and_host(request),
+            raise_for_status=True,
+        )
 
         projects = await res.json()
 
@@ -133,11 +130,11 @@ async def all_datasets_search_handler(
             search_req.join_query,
             search_req.data_type_queries,
             search_req.exclude_from_auto_join,
-            auth_header,
 
             config,
             http_session,
             logger,
+            request,
             service_manager,
         )
 
@@ -182,8 +179,6 @@ async def dataset_search_handler(
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
-    auth_header = request.headers.get("Authorization")
-
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
@@ -191,7 +186,7 @@ async def dataset_search_handler(
         logger.debug(f"fetching dataset {dataset_id} from Katsu")
         res = await http_session.get(
             urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
-            headers={"Authorization": auth_header, **DATASET_SEARCH_HEADERS},
+            headers=forward_auth_and_host(request),
             raise_for_status=True,
         )
 
@@ -214,8 +209,8 @@ async def dataset_search_handler(
             config=config,
             http_session=http_session,
             logger=logger,
+            request=request,
             service_manager=service_manager,
-            auth_header=auth_header,
         )
 
         return {**dataset, **dataset_results}

@@ -4,11 +4,13 @@ import logging
 
 from aiohttp import ClientSession
 from bento_lib.search.queries import Query
+from fastapi import Request
 
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.service_manager import ServiceManager
-from .constants import DATASET_SEARCH_HEADERS
+
+from .query_utils import forward_auth_and_host
 
 
 __all__ = [
@@ -168,11 +170,11 @@ async def _run_search(
     data_type_queries: dict[str, Query],
     target_linked_fields: DictOfDataTypesAndFields | None,
     include_internal_results: bool,
-    auth_header: str | None,
     dataset_object_schema: dict,
     dataset_linked_fields_results: list[set],
     config: Config,
     http_session: ClientSession,
+    request: Request,
     service_manager: ServiceManager,
 ):
     """
@@ -254,14 +256,7 @@ async def _run_search(
 
         # Run the search
 
-        res = await http_session.get(
-            search_path,
-            params=url_args,
-            headers={
-                **({"Authorization": auth_header} if auth_header else {}),
-                **DATASET_SEARCH_HEADERS,
-            }
-        )
+        res = await http_session.get(search_path, params=url_args, headers=forward_auth_and_host(request))
         r = await res.json()
 
         if private:
@@ -318,8 +313,8 @@ async def run_search_on_dataset(
     config: Config,
     http_session: ClientSession,
     logger: logging.Logger,
+    request: Request,
     service_manager: ServiceManager,
-    auth_header: str | None = None,
 ) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: DictOfDataTypesAndFields | None = _get_linked_field_for_query(
@@ -409,11 +404,11 @@ async def run_search_on_dataset(
             data_type_queries,
             target_linked_field,
             include_internal_results,
-            auth_header,
             dataset_object_schema,
             dataset_linked_fields_results,
             config,
             http_session,
+            request,
             service_manager,
         )
 
@@ -451,9 +446,6 @@ async def run_search_on_dataset(
     r = await http_session.post(
         f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
         json=request_body,
-        headers={
-            **({"Authorization": auth_header} if auth_header else {}),
-            **DATASET_SEARCH_HEADERS
-        },
+        headers=forward_auth_and_host(request),
     )
     return await r.json()
