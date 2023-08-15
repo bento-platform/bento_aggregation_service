@@ -23,7 +23,7 @@ RUN poetry config virtualenvs.create false && \
 COPY bento_aggregation_service bento_aggregation_service
 COPY LICENSE .
 COPY README.md .
-COPY run.py .
+COPY run.bash .
 
 # Install the module itself, locally (similar to `pip install -e .`)
 RUN poetry install --without dev
