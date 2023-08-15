@@ -26,7 +26,6 @@ class Config(BaseSettings):
     bento_debug: bool = False
 
     service_id: str = str(":".join(list(SERVICE_TYPE.values())[:2]))
-    service_url: str = "http://127.0.0.1:5000"  # base URL to construct object URIs from
 
     request_timeout: int = 180  # seconds
 
