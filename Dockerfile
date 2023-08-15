@@ -5,7 +5,7 @@ USER root
 
 # Use uvicorn (instead of hypercorn) in production since I've found
 # multiple benchmarks showing it to be faster - David L
-RUN pip install --no-cache-dir "uvicorn[standard]==0.20.0"
+RUN pip install --no-cache-dir "uvicorn[standard]==0.23.2"
 
 WORKDIR /aggregation
 

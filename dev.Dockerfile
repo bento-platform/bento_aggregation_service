@@ -14,7 +14,7 @@ LABEL devcontainer.metadata='[{ \
 # Run as root in the Dockerfile until we drop down to the service user in the entrypoint
 USER root
 
-RUN pip install --no-cache-dir "uvicorn[standard]==0.20.0"
+RUN pip install --no-cache-dir "uvicorn[standard]==0.23.2"
 
 WORKDIR /aggregation
 
