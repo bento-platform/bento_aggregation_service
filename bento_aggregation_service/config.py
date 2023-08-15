@@ -18,8 +18,8 @@ __all__ = [
 class CorsOriginsParsingSource(EnvSettingsSource):
     def prepare_field_value(self, field_name: str, field: FieldInfo, value: Any, value_is_complex: bool) -> Any:
         if field_name == "cors_origins":
-            return tuple(x.strip() for x in value.split(";"))
-        return json.loads(value)
+            return tuple(x.strip() for x in value.split(";")) if value is not None else ()
+        return json.loads(value) if value_is_complex else value
 
 
 class Config(BaseSettings):
@@ -38,7 +38,7 @@ class Config(BaseSettings):
     katsu_url: str
     service_registry_url: str  # used for fetching list of data services, so we can get data type providers
 
-    cors_origins: tuple[str, ...] = ()
+    cors_origins: tuple[str, ...] = ("*",)
 
     log_level: Literal["debug", "info", "warning", "error"] = "debug"
 

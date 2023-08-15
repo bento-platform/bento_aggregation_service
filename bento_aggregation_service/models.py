@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 __all__ = [
     "DataTypeServiceListing",
@@ -9,7 +9,7 @@ __all__ = [
 class DataTypeServiceListing(BaseModel):
     label: str | None = None
     queryable: bool
-    schema: dict
+    item_schema: dict = Field(..., alias="schema")
     metadata_schema: dict
     id: str
     count: int | None
