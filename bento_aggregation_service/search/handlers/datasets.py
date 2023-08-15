@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config, ConfigDependency
+from bento_aggregation_service.http_session import HTTPSessionDependency
 from bento_aggregation_service.logger import LoggerDependency
 from bento_aggregation_service.service_manager import ServiceManager, ServiceManagerDependency
 
@@ -41,6 +42,7 @@ async def search_worker(
 
     # Dependencies
     config: Config,
+    http_session: ClientSession,
     logger: logging.Logger,
     service_manager: ServiceManager,
 
@@ -58,6 +60,7 @@ async def search_worker(
                 exclude_from_auto_join,
                 include_internal_results,
                 config,
+                http_session,
                 logger,
                 service_manager,
                 auth_header,
@@ -90,6 +93,7 @@ async def all_datasets_search_handler(
     request: Request,
     search_req: DatasetSearchRequest,
     config: ConfigDependency,
+    http_session: HTTPSessionDependency,
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
@@ -132,6 +136,7 @@ async def all_datasets_search_handler(
             auth_header,
 
             config,
+            http_session,
             logger,
             service_manager,
         )
@@ -173,6 +178,7 @@ async def dataset_search_handler(
     search_req: DatasetSearchRequest,
     dataset_id: str,
     config: ConfigDependency,
+    http_session: HTTPSessionDependency,
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
@@ -182,13 +188,12 @@ async def dataset_search_handler(
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
 
-        async with ClientSession() as s:
-            logger.debug(f"fetching dataset {dataset_id} from Katsu")
-            res = await s.get(
-                urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
-                headers={"Authorization": auth_header, **DATASET_SEARCH_HEADERS},
-                raise_for_status=True,
-            )
+        logger.debug(f"fetching dataset {dataset_id} from Katsu")
+        res = await http_session.get(
+            urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
+            headers={"Authorization": auth_header, **DATASET_SEARCH_HEADERS},
+            raise_for_status=True,
+        )
 
         dataset = await res.json()
 
@@ -207,6 +212,7 @@ async def dataset_search_handler(
             search_req.exclude_from_auto_join,
             include_internal_results=True,
             config=config,
+            http_session=http_session,
             logger=logger,
             service_manager=service_manager,
             auth_header=auth_header,

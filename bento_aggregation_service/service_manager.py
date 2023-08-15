@@ -21,8 +21,11 @@ __all__ = [
 class ServiceManager:
     def __init__(self, config: Config, logger: logging.Logger):
         self._logger: logging.Logger = logger
+
         self._service_registry_url: str = config.service_registry_url.rstrip("/")
-        self._verify_ssl = not config.bento_debug
+        self._timeout: int = config.request_timeout
+        self._verify_ssl: bool = not config.bento_debug
+
         self._service_list: list[GA4GHServiceInfo] = []
 
     @contextlib.asynccontextmanager
@@ -30,11 +33,17 @@ class ServiceManager:
         self,
         existing: aiohttp.ClientSession | None = None,
     ) -> AsyncIterator[aiohttp.ClientSession]:
+        # Don't use the FastAPI dependency for the HTTP session, since this object is long-lasting.
+
         if existing:
             yield existing
             return
 
-        session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=self._verify_ssl))
+        session = aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(verify_ssl=self._verify_ssl),
+            timeout=self._timeout,
+        )
+
         try:
             yield session
         finally:

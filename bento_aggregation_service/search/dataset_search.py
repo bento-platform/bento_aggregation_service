@@ -1,8 +1,8 @@
-import aiohttp
 import itertools
 import json
 import logging
 
+from aiohttp import ClientSession
 from bento_lib.search.queries import Query
 
 from bento_aggregation_service.config import Config
@@ -172,8 +172,8 @@ async def _run_search(
     dataset_object_schema: dict,
     dataset_linked_fields_results: list[set],
     config: Config,
+    http_session: ClientSession,
     service_manager: ServiceManager,
-    session: aiohttp.ClientSession,
 ):
     """
     Impure async function.
@@ -254,7 +254,7 @@ async def _run_search(
 
         # Run the search
 
-        res = await session.get(
+        res = await http_session.get(
             search_path,
             params=url_args,
             headers={
@@ -316,6 +316,7 @@ async def run_search_on_dataset(
     exclude_from_auto_join: tuple[str, ...],
     include_internal_results: bool,
     config: Config,
+    http_session: ClientSession,
     logger: logging.Logger,
     service_manager: ServiceManager,
     auth_header: str | None = None,
@@ -393,67 +394,66 @@ async def run_search_on_dataset(
 
     # TODO: no weird override logic for specific data types!
 
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(verify_ssl=not config.bento_debug)) as session:
-        if query_is_phenopacket_only:
-            request_body = {
-                "query": data_type_queries["phenopacket"],
-                "output": "bento_search_result"
-            }
+    if query_is_phenopacket_only:
+        request_body = {
+            "query": data_type_queries["phenopacket"],
+            "output": "bento_search_result"
+        }
 
-        else:
-            dataset_linked_fields_results: list[set] = []
+    else:
+        dataset_linked_fields_results: list[set] = []
 
-            await _run_search(
-                dataset_id,
-                join_query,
-                data_type_queries,
-                target_linked_field,
-                include_internal_results,
-                auth_header,
-                dataset_object_schema,
-                dataset_linked_fields_results,
-                config,
-                service_manager,
-                session,
-            )
-
-            # Compute the intersection between the sets of results
-            results = dataset_linked_fields_results[0]
-            for r in dataset_linked_fields_results:
-                results.intersection_update(r)
-
-            if not include_internal_results:
-                return {
-                    "results": list(results),
-                }
-
-            # edge case: no result, no extra query
-            if len(results) == 0:
-                return {
-                    "results": []
-                }
-
-            request_body = {
-                "query": [
-                    "#in",
-                    ["#resolve", *target_linked_field["phenopacket"]],
-                    ["#list", *results],
-                ],
-                "output": "bento_search_result"
-            }
-
-        # TODO: what if no phenopacket service?
-        # Make this code more generic... Maybe, `format` and final `data-type` should
-        # be extracted from the request. If these are absent, then fetch results from
-        # every service.
-
-        # POST required to avoid exceeding GET parameters limit size with the list of ids
-        r = await session.post(
-            f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
-            json=request_body,
-            headers={
-                **({"Authorization": auth_header} if auth_header else {}),
-                **DATASET_SEARCH_HEADERS
-            },
+        await _run_search(
+            dataset_id,
+            join_query,
+            data_type_queries,
+            target_linked_field,
+            include_internal_results,
+            auth_header,
+            dataset_object_schema,
+            dataset_linked_fields_results,
+            config,
+            http_session,
+            service_manager,
         )
-        return await r.json()
+
+        # Compute the intersection between the sets of results
+        results = dataset_linked_fields_results[0]
+        for r in dataset_linked_fields_results:
+            results.intersection_update(r)
+
+        if not include_internal_results:
+            return {
+                "results": list(results),
+            }
+
+        # edge case: no result, no extra query
+        if len(results) == 0:
+            return {
+                "results": []
+            }
+
+        request_body = {
+            "query": [
+                "#in",
+                ["#resolve", *target_linked_field["phenopacket"]],
+                ["#list", *results],
+            ],
+            "output": "bento_search_result"
+        }
+
+    # TODO: what if no phenopacket service?
+    # Make this code more generic... Maybe, `format` and final `data-type` should
+    # be extracted from the request. If these are absent, then fetch results from
+    # every service.
+
+    # POST required to avoid exceeding GET parameters limit size with the list of ids
+    r = await http_session.post(
+        f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
+        json=request_body,
+        headers={
+            **({"Authorization": auth_header} if auth_header else {}),
+            **DATASET_SEARCH_HEADERS
+        },
+    )
+    return await r.json()

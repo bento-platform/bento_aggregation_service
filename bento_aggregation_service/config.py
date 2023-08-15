@@ -28,6 +28,7 @@ class Config(BaseSettings):
     service_id: str = str(":".join(list(SERVICE_TYPE.values())[:2]))
     service_url: str = "http://127.0.0.1:5000"  # base URL to construct object URIs from
 
+    request_timeout: int = 180  # seconds
 
     bento_authz_service_url: str  # Bento authorization service base URL
     authz_enabled: bool = True
@@ -35,7 +36,7 @@ class Config(BaseSettings):
     # Other services - settings and flags
     use_gohan: bool = False
     katsu_url: str
-    service_registry_url: str  # used for fetching list of data services so we can get data type providers
+    service_registry_url: str  # used for fetching list of data services, so we can get data type providers
 
     cors_origins: tuple[str, ...] = ()
 
