@@ -96,12 +96,19 @@ async def all_datasets_search_handler(
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
-    results = []
-
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
+    except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
+        # TODO: Better / more compliant error message
+        err = f"Query processing error: {str(e)}"  # TODO: Better message
+        logger.error(err)
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
 
+    results = []
+
+    try:
         # TODO: Handle pagination
         # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
 
@@ -158,15 +165,6 @@ async def all_datasets_search_handler(
         # TODO: include traceback in error
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=err)
 
-    except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-        # TODO: Better / more compliant error message
-        # TODO: Move these up?
-        # TODO: Not guaranteed to be actually query-processing errors
-        err = f"Query processing error: {str(e)}"  # TODO: Better message
-        logger.error(err)
-        traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
-
 
 @dataset_search_router.post("/dataset-search/{dataset_id}")
 async def dataset_search_handler(
@@ -181,6 +179,13 @@ async def dataset_search_handler(
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
+    except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
+        # TODO: Better / more compliant error message
+        err = f"Query processing error: {str(e)}"
+        traceback.print_exc()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+
+    try:
 
         logger.debug(f"fetching dataset {dataset_id} from Katsu")
         res = await http_session.get(
@@ -221,11 +226,3 @@ async def dataset_search_handler(
         logger.error(err)
         traceback.print_exc()  # TODO: log instead of printing manually
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=err)
-
-    except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-        # TODO: Better / more compliant error message
-        # TODO: Move these up?
-        # TODO: Not guaranteed to be actually query-processing errors
-        err = f"Query processing error: {str(e)}"
-        traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
