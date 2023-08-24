@@ -41,7 +41,7 @@ class ServiceManager:
 
         session = aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(verify_ssl=self._verify_ssl),
-            timeout=self._timeout,
+            timeout=aiohttp.ClientTimeout(total=self._timeout),
         )
 
         try:
