@@ -6,16 +6,15 @@ from typing import Iterable
 
 
 __all__ = [
-    "forward_auth_and_host",
+    "forward_auth_if_available",
     "test_queries",
 ]
 
 
-def forward_auth_and_host(request: Request) -> dict[str, str]:
+def forward_auth_if_available(request: Request) -> dict[str, str]:
     auth = request.headers.get("Authorization")
     return {
         **({"Authorization": auth} if auth is not None else {}),
-        "Host": request.client.host,
     }
 
 

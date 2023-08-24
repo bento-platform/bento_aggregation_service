@@ -10,7 +10,7 @@ from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.service_manager import ServiceManager
 
-from .query_utils import forward_auth_and_host
+from .query_utils import forward_auth_if_available
 
 
 __all__ = [
@@ -256,7 +256,7 @@ async def _run_search(
 
         # Run the search
 
-        res = await http_session.get(search_path, params=url_args, headers=forward_auth_and_host(request))
+        res = await http_session.get(search_path, params=url_args, headers=forward_auth_if_available(request))
         r = await res.json()
 
         if private:
@@ -446,6 +446,6 @@ async def run_search_on_dataset(
     r = await http_session.post(
         f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
         json=request_body,
-        headers=forward_auth_and_host(request),
+        headers=forward_auth_if_available(request),
     )
     return await r.json()
