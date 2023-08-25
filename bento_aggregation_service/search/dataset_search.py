@@ -176,6 +176,7 @@ async def _run_search(
     http_session: ClientSession,
     request: Request,
     service_manager: ServiceManager,
+    headers: dict[str, str]
 ):
     """
     Impure async function.
@@ -196,7 +197,7 @@ async def _run_search(
     the issue is, but it looks "dangerous")
     """
 
-    data_type_entries = await service_manager.fetch_data_types()
+    data_type_entries = await service_manager.fetch_data_types(headers=headers)
 
     for data_type in data_type_queries.keys():
         # True is a value used instead of the AST string to return the whole
@@ -227,7 +228,10 @@ async def _run_search(
         # Setup up search pre-requisites
         # - defaults:
         search_path = f"{data_type_entry.service_base_url}/private/datasets/{dataset_id}/search"
-        url_args = [("query", json.dumps(data_type_queries[data_type]))]
+        url_args = [
+            ("query", json.dumps(data_type_queries[data_type])),
+            ("data_type", data_type)
+        ]
 
         # WIP: if no linked fields have been defined, the search can still be made?
         if target_linked_fields:
@@ -255,8 +259,8 @@ async def _run_search(
             url_args = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
 
         # Run the search
-
-        res = await http_session.get(search_path, params=url_args, headers=forward_auth_if_available(request))
+        headers = forward_auth_if_available(request)
+        res = await http_session.get(search_path, params=url_args, headers=headers)
         r = await res.json()
 
         if private:
@@ -315,6 +319,7 @@ async def run_search_on_dataset(
     logger: logging.Logger,
     request: Request,
     service_manager: ServiceManager,
+    headers: dict[str, str]
 ) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: DictOfDataTypesAndFields | None = _get_linked_field_for_query(
@@ -411,6 +416,7 @@ async def run_search_on_dataset(
             http_session,
             request,
             service_manager,
+            headers
         )
 
         # Compute the intersection between the sets of results

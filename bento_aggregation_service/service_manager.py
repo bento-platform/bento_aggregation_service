@@ -7,6 +7,7 @@ from bento_lib.types import GA4GHServiceInfo
 from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated, AsyncIterator
+from urllib.parse import urljoin
 
 from .config import Config, ConfigDependency
 from .logger import LoggerDependency
@@ -49,13 +50,16 @@ class ServiceManager:
         finally:
             await session.close()
 
-    async def fetch_service_list(self, existing_session: aiohttp.ClientSession | None = None) -> list[GA4GHServiceInfo]:
+    async def fetch_service_list(self,
+                                 existing_session: aiohttp.ClientSession | None = None,
+                                 headers: dict[str, str] | None = None) -> list[GA4GHServiceInfo]:
         if self._service_list:
             return self._service_list
 
         session: aiohttp.ClientSession
         async with self._http_session(existing_session) as session:
-            r = await session.get(self._service_registry_url)
+            url = urljoin(self._service_registry_url, "/api/service-registry/services")
+            r = await session.get(url, headers=headers)
 
             if not r.ok:
                 self._logger.error(
@@ -72,19 +76,31 @@ class ServiceManager:
                 self._logger.warning("Got empty service list response from service registry")
                 return []
 
-    async def fetch_data_types(self, existing_session: aiohttp.ClientSession | None = None) -> dict[str, DataType]:
-        data_services = [s for s in await self.fetch_service_list() if s.get("bento", {}).get("dataService")]
+    async def fetch_data_types(self,
+                               existing_session: aiohttp.ClientSession | None = None,
+                               headers: dict[str, str] | None = None) -> dict[str, DataType]:
+        headers["content-type"] = "application/json"
+        services = await self.fetch_service_list(headers=headers)
+        data_services = []
+        for s in services:
+            bento = s.get("bento", {})
+            ds = bento.get("dataService")
+            if ds:
+                data_services.append(s)
+        # data_services = [s for s in services if s.get("bento", {}).get("dataService")]
 
-        async def _get_data_types_for_service(s: aiohttp.ClientSession, ds: GA4GHServiceInfo) -> tuple[DataType, ...]:
-            service_base_url = ds["url"].rstrip("/")
-            dt_url = service_base_url.rstrip("/") + "data-types"
+        async def _get_data_types_for_service(s: aiohttp.ClientSession, ds: GA4GHServiceInfo,
+                                              headers: dict[str, str]) -> tuple[DataType, ...]:
+            service_base_url = ds["url"]
+            dt_url = service_base_url.rstrip("/") + "/data-types"
 
-            r = await s.get(dt_url)
+            r = await s.get(dt_url, headers=headers)
             if not r.ok:
                 self._logger.error(f"Recieved error from data-types URL {dt_url}: {r.status} {await r.json()}")
                 return ()
 
-            service_dts: list[GA4GHServiceInfo] = await r.json()
+            payload = await r.json()
+            service_dts: list[GA4GHServiceInfo] = payload
             return tuple(
                 DataType.model_validate({"service_base_url": service_base_url, "data_type_listing": sdt})
                 for sdt in service_dts
@@ -93,9 +109,12 @@ class ServiceManager:
         session: aiohttp.ClientSession
         async with self._http_session(existing=existing_session) as session:
             dts: tuple[DataType, ...] = await asyncio.gather(
-                *(_get_data_types_for_service(session, ds) for ds in data_services))
-
-        return {dt.data_type_listing.id: dt for dt in dts}
+                *(_get_data_types_for_service(session, ds, headers) for ds in data_services))
+        types = {}
+        for dts_item in dts:
+            dt = {dt.data_type_listing.id: dt for dt in dts_item}
+            types = {**types, **dt}
+        return types
 
 
 @lru_cache()

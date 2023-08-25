@@ -215,6 +215,7 @@ async def dataset_search_handler(
             logger=logger,
             request=request,
             service_manager=service_manager,
+            headers=forward_auth_if_available(request)
         )
 
         return {**dataset, **dataset_results}
