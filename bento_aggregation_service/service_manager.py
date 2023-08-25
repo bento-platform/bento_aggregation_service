@@ -81,13 +81,7 @@ class ServiceManager:
                                headers: dict[str, str] | None = None) -> dict[str, DataType]:
         headers["content-type"] = "application/json"
         services = await self.fetch_service_list(headers=headers)
-        data_services = []
-        for s in services:
-            bento = s.get("bento", {})
-            ds = bento.get("dataService")
-            if ds:
-                data_services.append(s)
-        # data_services = [s for s in services if s.get("bento", {}).get("dataService")]
+        data_services = [s for s in services if s.get("bento", {}).get("dataService")]
 
         async def _get_data_types_for_service(s: aiohttp.ClientSession, ds: GA4GHServiceInfo,
                                               headers: dict[str, str]) -> tuple[DataType, ...]:
@@ -110,10 +104,11 @@ class ServiceManager:
         async with self._http_session(existing=existing_session) as session:
             dts: tuple[DataType, ...] = await asyncio.gather(
                 *(_get_data_types_for_service(session, ds, headers) for ds in data_services))
-        types = {}
+        
+        types: dict[str, DataType] = {}
         for dts_item in dts:
             dt = {dt.data_type_listing.id: dt for dt in dts_item}
-            types = {**types, **dt}
+            types.update(dt)
         return types
 
 
