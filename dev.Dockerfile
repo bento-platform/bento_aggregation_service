@@ -32,7 +32,7 @@ RUN poetry config virtualenvs.create false && \
 
 COPY run.dev.bash .
 
-ENV CHORD_DEBUG=True
+ENV BENTO_DEBUG=True
 
 # Use base image entrypoint for dropping down into bento_user & running this CMD
 CMD ["bash", "./run.dev.bash"]
