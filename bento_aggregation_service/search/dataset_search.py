@@ -75,7 +75,7 @@ def _linked_field_sets_to_join_query(
         if p[0][0] in data_type_set and p[1][0] in data_type_set)
 
     if len(pairs) == 0:
-        logger.debug("No useful ID pairs present")
+        logger.debug(f"No useful ID pairs present ({data_type_set=})")
         return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
 
     if len(linked_field_sets) == 1:
@@ -226,7 +226,7 @@ async def _run_search(
 
         # Setup up search pre-requisites
         # - defaults:
-        search_path = f"{data_type_entry.service_base_url}/datasets/{dataset_id}/search"
+        search_path = f"{data_type_entry.service_base_url}/private/datasets/{dataset_id}/search"
         url_args = [("query", json.dumps(data_type_queries[data_type]))]
 
         # WIP: if no linked fields have been defined, the search can still be made?
@@ -366,7 +366,7 @@ async def run_search_on_dataset(
     # Combine the join query with the data type queries, fixing resolves to be consistent
     join_query = _combine_join_and_data_type_queries(join_query, data_type_queries, logger)
 
-    # ------------------------- Start running search on tables -------------------------
+    # ------------------------- Start running search across data types -------------------------
 
     # Special case: when the query contains constraints only on phenopackets,
     # searching for the matching biosamples id first will exclude any phenopacket
@@ -391,6 +391,7 @@ async def run_search_on_dataset(
 
     if query_is_phenopacket_only:
         request_body = {
+            "data_type": "phenopacket",
             "query": data_type_queries["phenopacket"],
             "output": "bento_search_result"
         }
@@ -429,6 +430,7 @@ async def run_search_on_dataset(
             }
 
         request_body = {
+            "data_type": "phenopacket",
             "query": [
                 "#in",
                 ["#resolve", *target_linked_field["phenopacket"]],
@@ -444,7 +446,7 @@ async def run_search_on_dataset(
 
     # POST required to avoid exceeding GET parameters limit size with the list of ids
     r = await http_session.post(
-        f"{config.katsu_url.rstrip('/')}/datasets/{dataset_id}/search",
+        f"{config.katsu_url.rstrip('/')}/private/datasets/{dataset_id}/search",
         json=request_body,
         headers=forward_auth_if_available(request),
     )
