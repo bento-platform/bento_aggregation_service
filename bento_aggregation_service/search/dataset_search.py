@@ -1,6 +1,7 @@
 import itertools
 import json
 import logging
+from urllib.parse import urljoin
 
 from aiohttp import ClientSession
 from bento_lib.search.queries import Query
@@ -247,7 +248,7 @@ async def _run_search(
 
         if is_using_gohan:
             # reset path_fragment:
-            search_path = f"{data_type_entry.service_base_url}/api/gohan/variants/get/by/variantId"
+            search_path = urljoin(data_type_entry.service_base_url, "/api/gohan/variants/get/by/variantId")
 
             # reset url_args:
             # - construct based on search query
