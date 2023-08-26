@@ -104,7 +104,7 @@ class ServiceManager:
         async with self._http_session(existing=existing_session) as session:
             dts: tuple[DataType, ...] = await asyncio.gather(
                 *(_get_data_types_for_service(session, ds, headers) for ds in data_services))
-        
+
         types: dict[str, DataType] = {}
         for dts_item in dts:
             dt = {dt.data_type_listing.id: dt for dt in dts_item}
