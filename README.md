@@ -3,17 +3,19 @@
 A service for aggregating search results across Bento data services.
 
 ## Environment Variables
+The following environment variables are required for the Aggregation Service:
 
-`CHORD_DEBUG`: `true` (insecure) or `false`; default is `false`
+- `BENTO_DEBUG`: `true` (insecure) or `false`; default is `false`
 
-`CHORD_URL`: ex. `http://127.0.0.1:5000/`
+- `USE_GOHAN`: `true` or `false` to use Gohan; default is `true`
 
-By convention, this *should* have a trailing slash; however as of v0.9.1 this 
+- `KATSU_URL`: katsu service url (e.g. https://portal.bentov2.local/api/metadata/)
+
+- `SERVICE_REGISTRY_URL`: service registry url (e.g. https://bentov2.local/api/service-registry/)
+
+- `BENTO_AUTHZ_SERVICE_URL`: authorization service url (e.g. https://bentov2.local/api/authorization/)
+
+By convention, URLs *should* have a trailing slash; however as of v0.9.1 this 
 is optional.
 
-`PORT`: Specified when running via `./run.py`; defaults to `5000`
-
-`SERVICE_URL_BASE_PATH`: Base URL fragment (e.g. `/test/`) for endpoints
-
-Should usually be blank; set to non-blank to locally emulate a proxy prefix
-like `/api/aggregation`.
+Note that when deployed in a [Bento](https://github.com/bento-platform/bento) node, these environment variables are provided by the Aggregation docker-compose [file](https://github.com/bento-platform/bento/blob/main/lib/aggregation/docker-compose.aggregation.yaml).

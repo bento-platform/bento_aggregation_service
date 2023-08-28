@@ -2,33 +2,48 @@ from __future__ import annotations
 
 import asyncio
 import bento_aggregation_service
-import tornado.gen
-import tornado.ioloop
-import tornado.web
 
 from bento_lib.types import GA4GHServiceInfo
-from tornado.web import RequestHandler, url
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from .config import ConfigDependency, get_config
 from .constants import (
     BENTO_SERVICE_KIND,
-    SERVICE_ID,
     SERVICE_TYPE,
     SERVICE_NAME,
-    PORT,
-    BASE_PATH,
-    CHORD_DEBUG,
-    CHORD_URL_SET,
-    DEBUGGER_PORT,
 )
-from .logger import logger
-from .search.handlers.datasets import DatasetsSearchHandler
-from .search.handlers.private_dataset import PrivateDatasetSearchHandler
+from .logger import LoggerDependency
+from .search.handlers.datasets import dataset_search_router
 
 
-# noinspection PyAbstractClass,PyAttributeOutsideInit
-class ServiceInfoHandler(RequestHandler):
-    SERVICE_INFO: GA4GHServiceInfo = {
-        "id": SERVICE_ID,
+application = FastAPI()
+
+# TODO: Find a way to DI this
+config_for_setup = get_config()
+
+application.add_middleware(
+    CORSMiddleware,
+    allow_origins=config_for_setup.cors_origins,
+    allow_headers=["Authorization"],
+    allow_credentials=True,
+    allow_methods=["*"],
+)
+
+application.include_router(dataset_search_router)
+
+
+async def _git_stdout(*args) -> str:
+    git_proc = await asyncio.create_subprocess_exec(
+        "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    res, _ = await git_proc.communicate()
+    return res.decode().rstrip()
+
+
+@application.get("/service-info")
+async def service_info(config: ConfigDependency, logger: LoggerDependency):
+    info: GA4GHServiceInfo = {
+        "id": config.service_id,
         "name": SERVICE_NAME,  # TODO: Should be globally unique?
         "type": SERVICE_TYPE,
         "description": "Aggregation service for a Bento platform node.",
@@ -41,71 +56,26 @@ class ServiceInfoHandler(RequestHandler):
         "bento": {
             "serviceKind": BENTO_SERVICE_KIND,
         },
+        "environment": "prod",
     }
 
-    @staticmethod
-    async def _git_stdout(*args) -> str:
-        git_proc = await asyncio.create_subprocess_exec(
-            "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        res, _ = await git_proc.communicate()
-        return res.decode().rstrip()
+    if not config.bento_debug:
+        return info
 
-    async def get(self):
-        # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
+    info["environment"] = "dev"
 
-        if not CHORD_DEBUG:
-            # Cache production service info, since no information should change
-            self.set_header("Cache-Control", "private")
-            self.write({**self.SERVICE_INFO, "environment": "prod"})
-            return
+    try:
+        if res_tag := await _git_stdout("describe", "--tags", "--abbrev=0"):
+            # noinspection PyTypeChecker
+            info["bento"]["gitTag"] = res_tag
+        if res_branch := await _git_stdout("branch", "--show-current"):
+            # noinspection PyTypeChecker
+            info["bento"]["gitBranch"] = res_branch
+        if res_commit := await _git_stdout("rev-parse", "HEAD"):
+            # noinspection PyTypeChecker
+            info["bento"]["gitCommit"] = res_commit
 
-        service_info = {
-            **self.SERVICE_INFO,
-            "environment": "dev",
-        }
+    except Exception as e:
+        logger.warning(f"Could not retrieve git information: {type(e).__name__}")
 
-        try:
-            if res_tag := await self._git_stdout("describe", "--tags", "--abbrev=0"):
-                # noinspection PyTypeChecker
-                service_info["bento"]["gitTag"] = res_tag
-            if res_branch := await self._git_stdout("branch", "--show-current"):
-                # noinspection PyTypeChecker
-                service_info["bento"]["gitBranch"] = res_branch
-            if res_commit := await self._git_stdout("rev-parse", "HEAD"):
-                # noinspection PyTypeChecker
-                service_info["bento"]["gitCommit"] = res_commit
-
-        except Exception as e:
-            logger.warning(f"Could not retrieve git information: {type(e).__name__}")
-
-        self.write(service_info)
-
-
-class Application(tornado.web.Application):
-    def __init__(self, base_path: str):
-        super().__init__([
-            url(f"{base_path}/service-info", ServiceInfoHandler),
-            url(f"{base_path}/dataset-search", DatasetsSearchHandler),
-            url(f"{base_path}/private/dataset-search/([a-zA-Z0-9\\-_]+)", PrivateDatasetSearchHandler),
-        ])
-
-
-application = Application(BASE_PATH)
-
-
-def run():  # pragma: no cover
-    if not CHORD_URL_SET:
-        logger.critical("CHORD_URL is not set, terminating...")
-        exit(1)
-
-    if CHORD_DEBUG:
-        try:
-            # noinspection PyPackageRequirements,PyUnresolvedReferences
-            import debugpy
-            debugpy.listen(("0.0.0.0", DEBUGGER_PORT))
-            logger.info("debugger attached")
-        except ImportError:
-            logger.info("debugpy not found")
-
-    application.listen(PORT)
-    tornado.ioloop.IOLoop.current().start()
+    return info

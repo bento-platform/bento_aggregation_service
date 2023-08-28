@@ -1,32 +1,28 @@
 from __future__ import annotations
 
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
-from typing import Iterable, Optional
-
-from bento_aggregation_service.utils import get_request_json
+from fastapi import Request
+from typing import Iterable
 
 
 __all__ = [
-    "get_query_parts",
+    "service_request_headers",
     "test_queries",
 ]
 
 
-def get_query_parts(request_body: bytes) -> tuple[Optional[dict[str, Query]], Optional[Query], tuple[str, ...]]:
-    request = get_request_json(request_body)
-    if request is None:
-        return None, None, ()
+def forward_auth_if_available(request: Request) -> dict[str, str]:
+    auth = request.headers.get("Authorization")
+    return {
+        **({"Authorization": auth} if auth is not None else {}),
+    }
 
-    # Format: {"data_type": ["#eq", ...]}
-    data_type_queries: Optional[dict[str, Query]] = request.get("data_type_queries")
 
-    # Format: normal query, using data types for join conditions
-    join_query: Optional[Query] = request.get("join_query")
-
-    # Format: list of data types to use as part of a full-join-ish thing instead of an inner-join-ish thing
-    exclude_from_auto_join: tuple[str, ...] = request.get("exclude_from_auto_join", ())
-
-    return data_type_queries, join_query, exclude_from_auto_join
+def service_request_headers(request: Request) -> dict[str, str]:
+    return {
+        **forward_auth_if_available(request),
+        "Content-Type": "application/json",
+    }
 
 
 def test_queries(queries: Iterable[Query]) -> None:
@@ -87,7 +83,7 @@ def prune_non_gohan_paramters(list_pairs):
             list_pairs.remove(p)
 
 
-def construct_gohan_query_params(ast: list, supplemental_args: list[list[str]]):
+def construct_gohan_query_params(ast: list, supplemental_args: list[tuple[str, str]]):
     # somehow convert AST to a simple list of lists/strings/ints
     # converted_ast = [] # temp
 

@@ -1,21 +1,31 @@
 import logging
 
-from .constants import LOG_LEVEL
+from fastapi import Depends
+from functools import lru_cache
+from typing import Annotated
 
-logging.basicConfig(level=logging.NOTSET)
+from .config import ConfigDependency
 
 __all__ = [
-    "logger",
+    "get_logger",
+    "LoggerDependency",
 ]
 
-logger = logging.getLogger(__name__)
-
-log_level_conversion = {
+log_config_to_log_level = {
     "debug": logging.DEBUG,
     "info": logging.INFO,
     "warning": logging.WARNING,
     "error": logging.ERROR,
-    "critical": logging.CRITICAL,
 }
 
-logger.setLevel(log_level_conversion[LOG_LEVEL])
+logging.basicConfig(level=logging.DEBUG)
+
+
+@lru_cache
+def get_logger(config: ConfigDependency) -> logging.Logger:
+    logger = logging.getLogger(__name__)
+    logger.setLevel(log_config_to_log_level[config.log_level])
+    return logger
+
+
+LoggerDependency = Annotated[logging.Logger, Depends(get_logger)]
