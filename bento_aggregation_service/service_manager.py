@@ -83,7 +83,6 @@ class ServiceManager:
         existing_session: aiohttp.ClientSession | None = None,
         headers: dict[str, str] | None = None,
     ) -> dict[str, DataType]:
-        headers["content-type"] = "application/json"
         services = await self.fetch_service_list(headers=headers)
         data_services = [s for s in services if s.get("bento", {}).get("dataService")]
 

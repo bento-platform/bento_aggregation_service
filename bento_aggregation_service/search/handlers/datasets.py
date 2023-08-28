@@ -18,7 +18,7 @@ from bento_aggregation_service.logger import LoggerDependency
 from bento_aggregation_service.service_manager import ServiceManager, ServiceManagerDependency
 
 from ..dataset_search import run_search_on_dataset
-from ..query_utils import forward_auth_if_available, test_queries
+from ..query_utils import service_request_headers, test_queries
 
 
 __all__ = [
@@ -63,6 +63,7 @@ async def search_worker(
                 logger,
                 request,
                 service_manager,
+                headers=service_request_headers(request)
             )
             return dataset_id, dataset_results
 
@@ -115,7 +116,7 @@ async def all_datasets_search_handler(
         logger.debug("fetching projects from Katsu")
         res = await http_session.get(
             urljoin(config.katsu_url, "api/projects"),
-            headers=forward_auth_if_available(request),
+            headers=service_request_headers(request),
             raise_for_status=True,
         )
 
@@ -190,7 +191,7 @@ async def dataset_search_handler(
         logger.debug(f"fetching dataset {dataset_id} from Katsu")
         res = await http_session.get(
             urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
-            headers=forward_auth_if_available(request),
+            headers=service_request_headers(request),
             raise_for_status=True,
         )
 
@@ -215,7 +216,7 @@ async def dataset_search_handler(
             logger=logger,
             request=request,
             service_manager=service_manager,
-            headers=forward_auth_if_available(request)
+            headers=service_request_headers(request)
         )
 
         return {**dataset, **dataset_results}

@@ -11,8 +11,6 @@ from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
 from bento_aggregation_service.service_manager import ServiceManager
 
-from .query_utils import forward_auth_if_available
-
 
 __all__ = [
     "run_search_on_dataset",
@@ -260,7 +258,6 @@ async def _run_search(
             url_args = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
 
         # Run the search
-        headers = forward_auth_if_available(request)
         res = await http_session.get(search_path, params=url_args, headers=headers)
         r = await res.json()
 
@@ -455,6 +452,6 @@ async def run_search_on_dataset(
     r = await http_session.post(
         f"{config.katsu_url.rstrip('/')}/private/datasets/{dataset_id}/search",
         json=request_body,
-        headers=forward_auth_if_available(request),
+        headers=headers,
     )
     return await r.json()

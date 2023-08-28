@@ -6,7 +6,7 @@ from typing import Iterable
 
 
 __all__ = [
-    "forward_auth_if_available",
+    "service_request_headers",
     "test_queries",
 ]
 
@@ -15,6 +15,13 @@ def forward_auth_if_available(request: Request) -> dict[str, str]:
     auth = request.headers.get("Authorization")
     return {
         **({"Authorization": auth} if auth is not None else {}),
+    }
+
+
+def service_request_headers(request: Request) -> dict[str, str]:
+    return {
+        **forward_auth_if_available(request),
+        "Content-Type": "application/json",
     }
 
 
