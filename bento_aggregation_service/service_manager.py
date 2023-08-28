@@ -50,9 +50,11 @@ class ServiceManager:
         finally:
             await session.close()
 
-    async def fetch_service_list(self,
-                                 existing_session: aiohttp.ClientSession | None = None,
-                                 headers: dict[str, str] | None = None) -> list[GA4GHServiceInfo]:
+    async def fetch_service_list(
+        self,
+        existing_session: aiohttp.ClientSession | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> list[GA4GHServiceInfo]:
         if self._service_list:
             return self._service_list
 
@@ -76,15 +78,16 @@ class ServiceManager:
                 self._logger.warning("Got empty service list response from service registry")
                 return []
 
-    async def fetch_data_types(self,
-                               existing_session: aiohttp.ClientSession | None = None,
-                               headers: dict[str, str] | None = None) -> dict[str, DataType]:
+    async def fetch_data_types(
+        self,
+        existing_session: aiohttp.ClientSession | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, DataType]:
         headers["content-type"] = "application/json"
         services = await self.fetch_service_list(headers=headers)
         data_services = [s for s in services if s.get("bento", {}).get("dataService")]
 
-        async def _get_data_types_for_service(s: aiohttp.ClientSession, ds: GA4GHServiceInfo,
-                                              headers: dict[str, str]) -> tuple[DataType, ...]:
+        async def _get_data_types_for_service(s: aiohttp.ClientSession, ds: GA4GHServiceInfo) -> tuple[DataType, ...]:
             service_base_url = ds["url"]
             dt_url = service_base_url.rstrip("/") + "/data-types"
 
@@ -102,8 +105,8 @@ class ServiceManager:
 
         session: aiohttp.ClientSession
         async with self._http_session(existing=existing_session) as session:
-            dts: tuple[DataType, ...] = await asyncio.gather(
-                *(_get_data_types_for_service(session, ds, headers) for ds in data_services))
+            dts: tuple[tuple[DataType, ...], ...] = await asyncio.gather(
+                *(_get_data_types_for_service(session, ds) for ds in data_services))
 
         types: dict[str, DataType] = {}
         for dts_item in dts:
