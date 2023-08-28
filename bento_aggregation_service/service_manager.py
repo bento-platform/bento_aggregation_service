@@ -96,8 +96,7 @@ class ServiceManager:
                 self._logger.error(f"Recieved error from data-types URL {dt_url}: {r.status} {await r.json()}")
                 return ()
 
-            payload = await r.json()
-            service_dts: list[GA4GHServiceInfo] = payload
+            service_dts: list[GA4GHServiceInfo] = await r.json()
             return tuple(
                 DataType.model_validate({"service_base_url": service_base_url, "data_type_listing": sdt})
                 for sdt in service_dts
@@ -105,12 +104,12 @@ class ServiceManager:
 
         session: aiohttp.ClientSession
         async with self._http_session(existing=existing_session) as session:
-            dts: tuple[tuple[DataType, ...], ...] = await asyncio.gather(
+            dts_nested: tuple[tuple[DataType, ...], ...] = await asyncio.gather(
                 *(_get_data_types_for_service(session, ds) for ds in data_services))
 
         return {
             dt.data_type_listing.id: dt
-            for dts_item in dts for dt in dts_item
+            for dts_item in dts_nested for dt in dts_item
         }
 
 
