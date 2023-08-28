@@ -42,8 +42,8 @@ async def search_worker(
     config: Config,
     http_session: ClientSession,
     logger: logging.Logger,
-    request: Request,
     service_manager: ServiceManager,
+    headers: dict[str, str],
 
     # Flags
     include_internal_results: bool = False,
@@ -61,9 +61,8 @@ async def search_worker(
                 config,
                 http_session,
                 logger,
-                request,
                 service_manager,
-                headers=service_request_headers(request)
+                headers
             )
             return dataset_id, dataset_results
 
@@ -114,9 +113,10 @@ async def all_datasets_search_handler(
         # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
 
         logger.debug("fetching projects from Katsu")
+        headers = service_request_headers(request=request)
         res = await http_session.get(
             urljoin(config.katsu_url, "api/projects"),
-            headers=service_request_headers(request),
+            headers=headers,
             raise_for_status=True,
         )
 
@@ -141,8 +141,8 @@ async def all_datasets_search_handler(
             config,
             http_session,
             logger,
-            request,
             service_manager,
+            headers,
         )
 
         logger.info("Done fetching individual service search results.")
@@ -189,9 +189,10 @@ async def dataset_search_handler(
     try:
 
         logger.debug(f"fetching dataset {dataset_id} from Katsu")
+        headers = service_request_headers(request)
         res = await http_session.get(
             urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
-            headers=service_request_headers(request),
+            headers=headers,
             raise_for_status=True,
         )
 
@@ -214,9 +215,8 @@ async def dataset_search_handler(
             config=config,
             http_session=http_session,
             logger=logger,
-            request=request,
             service_manager=service_manager,
-            headers=service_request_headers(request)
+            headers=headers,
         )
 
         return {**dataset, **dataset_results}

@@ -5,7 +5,6 @@ from urllib.parse import urljoin
 
 from aiohttp import ClientSession
 from bento_lib.search.queries import Query
-from fastapi import Request
 
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
@@ -173,7 +172,6 @@ async def _run_search(
     dataset_linked_fields_results: list[set],
     config: Config,
     http_session: ClientSession,
-    request: Request,
     service_manager: ServiceManager,
     headers: dict[str, str]
 ):
@@ -315,7 +313,6 @@ async def run_search_on_dataset(
     config: Config,
     http_session: ClientSession,
     logger: logging.Logger,
-    request: Request,
     service_manager: ServiceManager,
     headers: dict[str, str]
 ) -> dict[str, list]:
@@ -412,7 +409,6 @@ async def run_search_on_dataset(
             dataset_linked_fields_results,
             config,
             http_session,
-            request,
             service_manager,
             headers
         )
