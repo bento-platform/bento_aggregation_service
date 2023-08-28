@@ -334,29 +334,6 @@ async def run_search_on_dataset(
     if excluded_data_types:
         logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
 
-    # # TODO: fetch dataset data types
-    # dataset_data_types = []
-    #
-    # # TODO: fetch schemas for data types in dataset
-    #
-    # for dt, dt_q in filter(lambda dt2: dt2[0] not in dataset_data_types, data_type_queries.items()):
-    #     # If there are no data of a particular data type, we don't get the schema. If this
-    #     # happens, return no results unless the query is hard-coded to be True, in which
-    #     # case put in a fake schema.
-    #     # TODO: Come up with something more elegant/intuitive here - a way to resolve data types?
-    #     # TODO: This may sometimes return the wrong result - should check for resolves instead
-    #
-    #     # This CANNOT be simplified to "if not dt_q:"; other truth-y values don't have the
-    #     # same meaning (sorry Guido).
-    #     if dt_q is not True:
-    #         return {dt2: [] for dt2 in data_type_queries}
-    #
-    #     # Give it a boilerplate array schema and result set; there won't be anything there anyway
-    #     dataset_object_schema["properties"][dt] = {"type": "array"}
-    #     excluded_data_types.add(dt)
-    #
-    #     logger.debug(f"Excluding data type from join: {dt}")
-
     if join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries)
         # to filter out combinations
