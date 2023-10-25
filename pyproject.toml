@@ -19,17 +19,17 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.10.0"
-bento-lib = {extras = ["fastapi"], version = "^7.2.2"}
-fastapi = "^0.101.1"
+bento-lib = {extras = ["fastapi"], version = "^8.1.0"}
+fastapi = "^0.103.0"
 pydantic-settings = "^2.0.3"
-aiohttp = "^3.8.5"
-pydantic = "^2.1.1"
+aiohttp = "^3.8.6"
+pydantic = "^2.4.2"
 
 [tool.poetry.group.dev.dependencies]
-coverage = "^7.2.7"
-debugpy = "^1.6.7"
+coverage = "^7.3.2"
+debugpy = "^1.8.0"
 flake8 = "^6.0.0"
-pytest = "^7.4.0"
+pytest = "^7.4.3"
 pytest-cov = "^4.1.0"
-tox = "^4.6.4"
+tox = "^4.11.3"
 httpx = "^0.24.1"
