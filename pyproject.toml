@@ -22,7 +22,7 @@ python = "^3.10.0"
 bento-lib = {extras = ["fastapi"], version = "^8.1.0"}
 fastapi = "^0.103.0"
 pydantic-settings = "^2.0.3"
-aiohttp = "^3.8.6"
+aiohttp = "^3.9.0"
 pydantic = "^2.4.2"
 
 [tool.poetry.group.dev.dependencies]
