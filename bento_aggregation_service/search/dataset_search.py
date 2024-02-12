@@ -391,7 +391,7 @@ async def run_search_on_dataset(
         )
 
         # Compute the intersection between the sets of results
-        results = dataset_linked_fields_results[0]
+        results = dataset_linked_fields_results[0] if len(dataset_linked_fields_results) > 0 else []
         for r in dataset_linked_fields_results:
             results.intersection_update(r)
 
