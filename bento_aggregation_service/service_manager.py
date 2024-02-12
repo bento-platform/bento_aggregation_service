@@ -3,7 +3,7 @@ import asyncio
 import contextlib
 import logging
 
-from bento_lib.types import GA4GHServiceInfo
+from bento_lib.service_info.types import GA4GHServiceInfo
 from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated, AsyncIterator
