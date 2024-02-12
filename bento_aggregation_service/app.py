@@ -38,5 +38,5 @@ async def _git_stdout(*args) -> str:
 
 @application.get("/service-info")
 async def service_info(config: ConfigDependency, logger: LoggerDependency):
-    return build_service_info_from_pydantic_config(
+    return await build_service_info_from_pydantic_config(
         config, logger, {"serviceKind": BENTO_SERVICE_KIND}, SERVICE_TYPE, __version__)
