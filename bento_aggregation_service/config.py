@@ -1,5 +1,4 @@
 from bento_lib.config.pydantic import BentoBaseConfig
-from bento_lib.service_info.constants import SERVICE_ORGANIZATION_C3G
 from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated
@@ -16,7 +15,6 @@ __all__ = [
 class Config(BentoBaseConfig):
     service_id: str = str(":".join(list(SERVICE_TYPE.values())[:2]))
     service_name: str = "Bento Aggregation Service"
-    service_organization: str = SERVICE_ORGANIZATION_C3G
 
     request_timeout: int = 180  # seconds
 
