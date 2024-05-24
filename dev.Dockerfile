@@ -1,4 +1,4 @@
-FROM ghcr.io/bento-platform/bento_base_image:python-debian-2024.02.01
+FROM ghcr.io/bento-platform/bento_base_image:python-debian-2024.05.01
 
 LABEL org.opencontainers.image.description="Local development image the Bento aggregation service."
 LABEL devcontainer.metadata='[{ \
@@ -14,7 +14,7 @@ LABEL devcontainer.metadata='[{ \
 # Run as root in the Dockerfile until we drop down to the service user in the entrypoint
 USER root
 
-RUN pip install --no-cache-dir "uvicorn[standard]==0.27.1"
+RUN pip install --no-cache-dir "uvicorn[standard]==0.29.0"
 
 WORKDIR /aggregation
 
