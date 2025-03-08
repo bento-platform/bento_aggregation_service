@@ -208,7 +208,7 @@ async def _run_search(
         # True is a value used instead of the AST string to return the whole
         # datatype related data without any filtering. For perf. reasons
         # this is unneeded when doing a search
-        is_querying_data_type = not data_type_queries[data_type] is True
+        is_querying_data_type = data_type_queries[data_type] is not True
 
         # Don't need to fetch results for joining if the join query is None; just check
         # individual tables (which is much faster) using the public discovery endpoint.
