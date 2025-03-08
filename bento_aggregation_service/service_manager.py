@@ -66,7 +66,8 @@ class ServiceManager:
             if not r.ok:
                 self._logger.error(
                     f"Recieved error response from service registry while fetching service list: "
-                    f"{r.status} {await r.json()}")
+                    f"{r.status} {await r.json()}"
+                )
                 self._service_list = []
                 return []
 
@@ -104,12 +105,10 @@ class ServiceManager:
         session: aiohttp.ClientSession
         async with self._http_session(existing=existing_session) as session:
             dts_nested: tuple[tuple[DataType, ...], ...] = await asyncio.gather(
-                *(_get_data_types_for_service(session, ds) for ds in data_services))
+                *(_get_data_types_for_service(session, ds) for ds in data_services)
+            )
 
-        return {
-            dt.data_type_listing.id: dt
-            for dts_item in dts_nested for dt in dts_item
-        }
+        return {dt.data_type_listing.id: dt for dts_item in dts_nested for dt in dts_item}
 
 
 @lru_cache()

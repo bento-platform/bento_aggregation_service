@@ -194,7 +194,9 @@ def process_dataset_results(
     ic = None
     if join_query_ast is not None:
         ic = check_ast_against_data_structure(
-            join_query_ast, dataset_results, dataset_object_schema,
+            join_query_ast,
+            dataset_results,
+            dataset_object_schema,
             internal=True,
             return_all_index_combinations=include_internal_data,
             secure_errors=not config.bento_debug,
@@ -216,12 +218,18 @@ def process_dataset_results(
     # TODO: This is a bad solution - see elsewhere where this is discussed
     included_data_types = set(dt for dt, q in data_type_queries.items() if q is not True)
     # TODO: Optimize by not fetching if the query isn't going anywhere (i.e. no linked field sets, 2+ data types)
-    if ((join_query_ast is None and any(len(dtr) > 0 for dtr in dataset_results.values())
-         and len(included_data_types) == 1) or (join_query_ast is not None and ic)):
+    if (
+        join_query_ast is None
+        and any(len(dtr) > 0 for dtr in dataset_results.values())
+        and len(included_data_types) == 1
+    ) or (join_query_ast is not None and ic):
         yield {
             **dataset,
-            **({"results": _filter_results_by_index_combinations_if_set(dataset_results, ic, ic_paths_to_filter)}
-               if include_internal_data else {}),
+            **(
+                {"results": _filter_results_by_index_combinations_if_set(dataset_results, ic, ic_paths_to_filter)}
+                if include_internal_data
+                else {}
+            ),
         }  # TODO: Make sure all information here is public-level if include_internal_data is False.
 
     if always_yield:  # If true, yield even for empty search results

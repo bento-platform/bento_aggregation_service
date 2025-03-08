@@ -41,7 +41,7 @@ def print_tree(tabs, t):
         if isinstance(i, list):
             print_tree(tabs + 1, i)
         else:
-            print(f"{tabs*'   '}{i}")
+            print(f"{tabs * '   '}{i}")
 
 
 def simple_resolve_tree(t, finalists: list[str]) -> list[str]:
@@ -60,7 +60,7 @@ def pair_up_simple_list(t: list[str]) -> list[list[str]]:
     pairs = []
     for _ in t:
         if counter % 2 == 0:
-            pairs.append([t[counter], t[counter+1]])
+            pairs.append([t[counter], t[counter + 1]])
         counter += 1
     return pairs
 

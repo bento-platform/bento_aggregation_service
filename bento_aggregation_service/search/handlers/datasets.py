@@ -15,7 +15,10 @@ from urllib.parse import urljoin
 from bento_aggregation_service.config import Config, ConfigDependency
 from bento_aggregation_service.http_session import HTTPSessionDependency
 from bento_aggregation_service.logger import LoggerDependency
-from bento_aggregation_service.service_manager import ServiceManager, ServiceManagerDependency
+from bento_aggregation_service.service_manager import (
+    ServiceManager,
+    ServiceManagerDependency,
+)
 
 from ..dataset_search import run_search_on_dataset
 from ..query_utils import service_request_headers, test_queries
@@ -31,20 +34,17 @@ dataset_search_router = APIRouter()
 async def search_worker(
     # Input dataset list
     datasets: list[dict],
-
     # Input values
     dataset_object_schema: dict,
     join_query,
     data_type_queries,
     exclude_from_auto_join: tuple[str, ...],
-
     # Dependencies
     config: Config,
     http_session: ClientSession,
     logger: logging.Logger,
     service_manager: ServiceManager,
     headers: dict[str, str],
-
     # Flags
     include_internal_results: bool = False,
 ):
@@ -62,7 +62,7 @@ async def search_worker(
                 http_session,
                 logger,
                 service_manager,
-                headers
+                headers,
             )
             return dataset_id, dataset_results
 
@@ -124,20 +124,18 @@ async def all_datasets_search_handler(
 
         datasets_dict: dict[str, dict] = {d["identifier"]: d for p in projects["results"] for d in p["datasets"]}
 
-        dataset_object_schema = {
-            "type": "object",
-            "properties": {}
-        }
+        dataset_object_schema = {"type": "object", "properties": {}}
 
         # Spawn workers to handle asynchronous requests to various datasets
         dataset_objects_dict = await search_worker(
+            # dataset dictionaries:
             list(datasets_dict.values()),
-
+            # search request / query-related:
             dataset_object_schema,
             search_req.join_query,
             search_req.data_type_queries,
             search_req.exclude_from_auto_join,
-
+            # dependencies:
             config,
             http_session,
             logger,
@@ -151,10 +149,7 @@ async def all_datasets_search_handler(
         for dataset_id, dataset_results in dataset_objects_dict.items():
             if len(dataset_results) > 0:
                 d = datasets_dict[dataset_id]
-                results.append({
-                    **d,
-                    "results": {}
-                })
+                results.append({**d, "results": {}})
 
         return {"results": results}
 
@@ -187,7 +182,6 @@ async def dataset_search_handler(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
 
     try:
-
         logger.debug(f"fetching dataset {dataset_id} from Katsu")
         headers = service_request_headers(request)
         res = await http_session.get(
@@ -200,10 +194,7 @@ async def dataset_search_handler(
 
         # TODO: Handle dataset 404 properly
 
-        dataset_object_schema = {
-            "type": "object",
-            "properties": {}
-        }
+        dataset_object_schema = {"type": "object", "properties": {}}
 
         dataset_results = await run_search_on_dataset(
             dataset_object_schema,
