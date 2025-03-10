@@ -30,7 +30,11 @@ def _linked_fields_to_join_query_fragment(field_1: DataTypeAndField, field_2: Da
     :param field_2: The second field definition to join on.
     :return: The constructed join equality expression.
     """
-    return ["#eq", ["#resolve", field_1[0], "[item]", *field_1[1]], ["#resolve", field_2[0], "[item]", *field_2[1]]]
+    return [
+        "#eq",
+        ["#resolve", field_1[0], "[item]", *field_1[1]],
+        ["#resolve", field_2[0], "[item]", *field_2[1]],
+    ]
 
 
 def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
@@ -40,9 +44,11 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
     if len(pairs) == 1:
         return _linked_fields_to_join_query_fragment(*pairs[0])
 
-    return ["#and",
-            _linked_fields_to_join_query_fragment(*pairs[0]),
-            _linked_field_set_to_join_query_rec(pairs[1:])]
+    return [
+        "#and",
+        _linked_fields_to_join_query_fragment(*pairs[0]),
+        _linked_field_set_to_join_query_rec(pairs[1:]),
+    ]
 
 
 def _linked_field_sets_to_join_query(
@@ -69,8 +75,10 @@ def _linked_field_sets_to_join_query(
     # Just take the first linked field set, since we are recursing later.
 
     pairs = tuple(
-        p for p in itertools.combinations(linked_field_sets[0].items(), 2)
-        if p[0][0] in data_type_set and p[1][0] in data_type_set)
+        p
+        for p in itertools.combinations(linked_field_sets[0].items(), 2)
+        if p[0][0] in data_type_set and p[1][0] in data_type_set
+    )
 
     if len(pairs) == 0:
         logger.debug(f"No useful ID pairs present ({data_type_set=})")
@@ -173,7 +181,7 @@ async def _run_search(
     config: Config,
     http_session: ClientSession,
     service_manager: ServiceManager,
-    headers: dict[str, str]
+    headers: dict[str, str],
 ):
     """
     Impure async function.
@@ -200,7 +208,7 @@ async def _run_search(
         # True is a value used instead of the AST string to return the whole
         # datatype related data without any filtering. For perf. reasons
         # this is unneeded when doing a search
-        is_querying_data_type = not data_type_queries[data_type] is True
+        is_querying_data_type = data_type_queries[data_type] is not True
 
         # Don't need to fetch results for joining if the join query is None; just check
         # individual tables (which is much faster) using the public discovery endpoint.
@@ -215,7 +223,7 @@ async def _run_search(
             # Set schema for data type if needed
             dataset_object_schema["properties"][data_type] = {
                 "type": "array",
-                "items": data_type_entry.data_type_listing.item_schema if is_querying_data_type else {}
+                "items": data_type_entry.data_type_listing.item_schema if is_querying_data_type else {},
             }
 
         # If data type is not being queried, its results are irrelevant
@@ -227,15 +235,17 @@ async def _run_search(
         search_path = f"{data_type_entry.service_base_url}/private/datasets/{dataset_id}/search"
         url_args = [
             ("query", json.dumps(data_type_queries[data_type])),
-            ("data_type", data_type)
+            ("data_type", data_type),
         ]
 
         # WIP: if no linked fields have been defined, the search can still be made?
         if target_linked_fields:
-            url_args.extend((
-                ("field", json.dumps(target_linked_fields[data_type])),
-                ("output", "values_list"),
-            ))
+            url_args.extend(
+                (
+                    ("field", json.dumps(target_linked_fields[data_type])),
+                    ("output", "values_list"),
+                )
+            )
 
         # - Gohan compatibility
         # TODO: formalize/clean this up
@@ -271,11 +281,7 @@ async def _run_search(
                 #             },...
                 #           ]
                 # },...]
-                ids = [
-                    call["sample_id"]
-                    for r in ids
-                    for call in r["calls"]
-                ]
+                ids = [call["sample_id"] for r in ids for call in r["calls"]]
             # We have a results array to account for
             results = {id_ for id_ in ids if id_ is not None}
         else:
@@ -286,8 +292,7 @@ async def _run_search(
 
 
 def _get_linked_field_for_query(
-    linked_field_sets: LinkedFieldSetList,
-    data_type_queries: dict[str, Query]
+    linked_field_sets: LinkedFieldSetList, data_type_queries: dict[str, Query]
 ) -> DictOfDataTypesAndFields | None:
     """
     Given the linked field sets that are defined for a given Dataset, and a
@@ -314,11 +319,12 @@ async def run_search_on_dataset(
     http_session: ClientSession,
     logger: logging.Logger,
     service_manager: ServiceManager,
-    headers: dict[str, str]
+    headers: dict[str, str],
 ) -> dict[str, list]:
     linked_field_sets: LinkedFieldSetList = _get_dataset_linked_field_sets(dataset)
     target_linked_field: DictOfDataTypesAndFields | None = _get_linked_field_for_query(
-        linked_field_sets, data_type_queries)
+        linked_field_sets, data_type_queries
+    )
 
     dataset_id: str = dataset["identifier"]
 
@@ -338,7 +344,8 @@ async def run_search_on_dataset(
         # Could re-return None; pass set of all data types (keys of the data type queries)
         # to filter out combinations
         join_query = _linked_field_sets_to_join_query(
-            linked_field_sets, set(data_type_queries) - excluded_data_types, logger)
+            linked_field_sets, set(data_type_queries) - excluded_data_types, logger
+        )
 
     # Combine the join query with the data type queries, fixing resolves to be consistent
     join_query = _combine_join_and_data_type_queries(join_query, data_type_queries, logger)
@@ -359,9 +366,9 @@ async def run_search_on_dataset(
     # to take care of the case where a data_type is associated with the value
     # `True`, as no query is performed in that case.
     query_is_phenopacket_only = (
-        "phenopacket" in data_type_queries and
-        isinstance(data_type_queries["phenopacket"], list) and
-        len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
+        "phenopacket" in data_type_queries
+        and isinstance(data_type_queries["phenopacket"], list)
+        and len([k for k, val in data_type_queries.items() if isinstance(val, list)]) == 1
     )
 
     # TODO: no weird override logic for specific data types!
@@ -370,7 +377,7 @@ async def run_search_on_dataset(
         request_body = {
             "data_type": "phenopacket",
             "query": data_type_queries["phenopacket"],
-            "output": "bento_search_result"
+            "output": "bento_search_result",
         }
 
     else:
@@ -387,7 +394,7 @@ async def run_search_on_dataset(
             config,
             http_session,
             service_manager,
-            headers
+            headers,
         )
 
         # Compute the intersection between the sets of results
@@ -402,9 +409,7 @@ async def run_search_on_dataset(
 
         # edge case: no result, no extra query
         if len(results) == 0:
-            return {
-                "results": []
-            }
+            return {"results": []}
 
         request_body = {
             "data_type": "phenopacket",
@@ -413,7 +418,7 @@ async def run_search_on_dataset(
                 ["#resolve", *target_linked_field["phenopacket"]],
                 ["#list", *results],
             ],
-            "output": "bento_search_result"
+            "output": "bento_search_result",
         }
 
     # TODO: what if no phenopacket service?

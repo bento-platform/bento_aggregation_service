@@ -13,5 +13,6 @@ os.environ["CORS_ORIGINS"] = "*"
 @pytest.fixture
 def test_client():
     from bento_aggregation_service.app import application
+
     with TestClient(application) as client:
         yield client

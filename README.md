@@ -19,3 +19,23 @@ By convention, URLs *should* have a trailing slash; however as of v0.9.1 this
 is optional.
 
 Note that when deployed in a [Bento](https://github.com/bento-platform/bento) node, these environment variables are provided by the Aggregation docker-compose [file](https://github.com/bento-platform/bento/blob/main/lib/aggregation/docker-compose.aggregation.yaml).
+
+## Development
+
+To install dependencies locally, run:
+
+```bash
+poetry install
+```
+
+To run the auto-formatter:
+
+```bash
+poetry run ruff format
+```
+
+To tests and formatting/linting checks:
+
+```bash
+poetry run tox
+```
