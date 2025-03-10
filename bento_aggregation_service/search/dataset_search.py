@@ -1,10 +1,10 @@
 import itertools
 import json
-import logging
-from urllib.parse import urljoin
 
 from aiohttp import ClientSession
 from bento_lib.search.queries import Query
+from structlog.stdlib import BoundLogger
+from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
@@ -54,14 +54,14 @@ def _linked_field_set_to_join_query_rec(pairs: tuple) -> Query:
 def _linked_field_sets_to_join_query(
     linked_field_sets: LinkedFieldSetList,
     data_type_set: set[str],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Query | None:
     """
     Recursive function to add joins between linked fields.
     It recurses through the sets of linked fields.
     """
     if len(linked_field_sets) == 0:
-        logger.debug("No useful linked field sets present")
+        logger.debug("no useful linked field sets present")
         return None
 
     # TODO: This blows up combinatorially, oh well.
@@ -81,7 +81,7 @@ def _linked_field_sets_to_join_query(
     )
 
     if len(pairs) == 0:
-        logger.debug(f"No useful ID pairs present ({data_type_set=})")
+        logger.debug("no useful ID pairs present", data_type_set=data_type_set)
         return None  # TODO: Somehow tell the user no join was applied or return NO RESULTS if None and 2+ data types?
 
     if len(linked_field_sets) == 1:
@@ -122,7 +122,7 @@ def _augment_resolves(query: Query, prefix: tuple[str, ...]) -> Query:
 def _combine_join_and_data_type_queries(
     join_query: Query | None,
     data_type_queries: dict[str, Query],
-    logger: logging.Logger,
+    logger: BoundLogger,
 ) -> Query | None:
     if join_query is None:
         return None
@@ -136,7 +136,7 @@ def _combine_join_and_data_type_queries(
     for dt, q in data_type_queries.items():
         join_query = ["#and", _augment_resolves(q, (dt, "[item]")), join_query]
 
-    logger.debug(f"Generated join query: {join_query}")
+    logger.debug("generated join query", join_query=join_query)
 
     return join_query
 
@@ -317,7 +317,7 @@ async def run_search_on_dataset(
     include_internal_results: bool,
     config: Config,
     http_session: ClientSession,
-    logger: logging.Logger,
+    logger: BoundLogger,
     service_manager: ServiceManager,
     headers: dict[str, str],
 ) -> dict[str, list]:
@@ -328,8 +328,10 @@ async def run_search_on_dataset(
 
     dataset_id: str = dataset["identifier"]
 
-    logger.debug(f"Linked field sets: {linked_field_sets}")
-    logger.debug(f"Dataset: {dataset_id}")
+    logger = logger.bind(dataset_id=dataset_id)
+
+    await logger.adebug("got linked field sets", linked_field_sets=linked_field_sets)
+    await logger.adebug("running search on dataset")
 
     # Set of data types excluded from building the join query
     # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
@@ -338,7 +340,7 @@ async def run_search_on_dataset(
     excluded_data_types: set[str] = set(exclude_from_auto_join)
 
     if excluded_data_types:
-        logger.debug(f"Pre-excluding data types from join: {excluded_data_types}")
+        await logger.adebug("pre-excluding data types from join", excluded_data_types=excluded_data_types)
 
     if join_query is None:
         # Could re-return None; pass set of all data types (keys of the data type queries)

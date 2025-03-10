@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import traceback
 
 from aiohttp import ClientSession
@@ -10,6 +9,7 @@ from bento_lib.search.queries import Query
 from fastapi import APIRouter, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
+from structlog.stdlib import BoundLogger
 from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config, ConfigDependency
@@ -42,7 +42,7 @@ async def search_worker(
     # Dependencies
     config: Config,
     http_session: ClientSession,
-    logger: logging.Logger,
+    logger: BoundLogger,
     service_manager: ServiceManager,
     headers: dict[str, str],
     # Flags

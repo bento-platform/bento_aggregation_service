@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
+from bento_lib.logging.structured.fastapi import build_structlog_fastapi_middleware
 from bento_lib.service_info.helpers import build_service_info_from_pydantic_config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,6 +26,8 @@ application.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
 )
+
+application.middleware("http")(build_structlog_fastapi_middleware(BENTO_SERVICE_KIND))
 
 application.include_router(dataset_search_router)
 
