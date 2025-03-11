@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import logging
-
 from bento_lib.search.data_structure import check_ast_against_data_structure
 from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
 from collections.abc import Iterable
+from structlog.stdlib import BoundLogger
 
 from typing import Any, Optional
 
@@ -174,7 +173,7 @@ def process_dataset_results(
     include_internal_data: bool,
     # dependencies
     config: Config,
-    logger: logging.Logger,
+    logger: BoundLogger,
     # args w/ defaults
     ic_paths_to_filter: Optional[list[str]] = None,
     always_yield: bool = False,
@@ -186,7 +185,7 @@ def process_dataset_results(
     # TODO: Avoid re-compiling a fixed join query
     join_query_ast = convert_query_to_ast_and_preprocess(dataset_join_query) if dataset_join_query is not None else None
 
-    logger.debug(f"Compiled join query: {join_query_ast}")
+    logger.debug("compiled join query", join_query_ast=join_query_ast)
 
     # Truth-y if:
     #  - include_internal_data = False and check_ast_against_data_structure returns True

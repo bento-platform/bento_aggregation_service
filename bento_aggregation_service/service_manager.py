@@ -1,11 +1,11 @@
 import aiohttp
 import asyncio
 import contextlib
-import logging
 
 from bento_lib.service_info.types import GA4GHServiceInfo
 from fastapi import Depends
 from functools import lru_cache
+from structlog.stdlib import BoundLogger
 from typing import Annotated, AsyncIterator
 from urllib.parse import urljoin
 
@@ -20,8 +20,8 @@ __all__ = [
 
 
 class ServiceManager:
-    def __init__(self, config: Config, logger: logging.Logger):
-        self._logger: logging.Logger = logger
+    def __init__(self, config: Config, logger: BoundLogger):
+        self._logger: BoundLogger = logger
 
         self._service_registry_url: str = config.service_registry_url.rstrip("/")
         self._timeout: int = config.request_timeout
@@ -62,21 +62,20 @@ class ServiceManager:
         async with self._http_session(existing_session) as session:
             url = urljoin(self._service_registry_url, "/api/service-registry/services")
             r = await session.get(url, headers=headers)
+            body = await r.json()
+            logger = self._logger.bind(service_list_status=r.status, service_list_body=body)
 
             if not r.ok:
-                self._logger.error(
-                    f"Recieved error response from service registry while fetching service list: "
-                    f"{r.status} {await r.json()}"
-                )
+                await logger.aerror("recieved error response from service registry while fetching service list")
                 self._service_list = []
                 return []
 
-            service_list: list[GA4GHServiceInfo]
-            if service_list := await r.json():
+            service_list: list[GA4GHServiceInfo] = body
+            if service_list:
                 self._service_list = service_list
                 return service_list
             else:
-                self._logger.warning("Got empty service list response from service registry")
+                await logger.awarning("got empty service list response from service registry")
                 return []
 
     async def fetch_data_types(
@@ -93,7 +92,9 @@ class ServiceManager:
 
             r = await s.get(dt_url, headers=headers)
             if not r.ok:
-                self._logger.error(f"Recieved error from data-types URL {dt_url}: {r.status} {await r.json()}")
+                await self._logger.aerror(
+                    "recieved error from data-types URL", url=dt_url, status=r.status, body=await r.json()
+                )
                 return ()
 
             service_dts: list[GA4GHServiceInfo] = await r.json()

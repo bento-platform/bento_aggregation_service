@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
-import traceback
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -10,6 +8,7 @@ from bento_lib.search.queries import Query
 from fastapi import APIRouter, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
+from structlog.stdlib import BoundLogger
 from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config, ConfigDependency
@@ -42,7 +41,7 @@ async def search_worker(
     # Dependencies
     config: Config,
     http_session: ClientSession,
-    logger: logging.Logger,
+    logger: BoundLogger,
     service_manager: ServiceManager,
     headers: dict[str, str],
     # Flags
@@ -70,7 +69,7 @@ async def search_worker(
             # Metadata service error
             # TODO: Better message
             # TODO: Set error code outside worker?
-            logger.error(f"Error from dataset search: {str(e)}")
+            await logger.aexception("error from dataset search", exc_info=e)
             return dataset_id, None
 
     return {**asyncio.gather(*(_search_dataset(ds) for ds in datasets))}
@@ -96,15 +95,15 @@ async def all_datasets_search_handler(
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
+    logger = logger.bind(search_req=search_req)
+
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
     except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
-        # TODO: Better / more compliant error message
-        err = f"Query processing error: {str(e)}"  # TODO: Better message
-        logger.error(err)
-        traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+        # TODO: Better message
+        await logger.aexception("query processing error", exc_info=e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Query processing error: {str(e)}")
 
     results = []
 
@@ -112,7 +111,7 @@ async def all_datasets_search_handler(
         # TODO: Handle pagination
         # TODO: Why fetch projects instead of datasets? Is it to avoid "orphan" datasets? Is that even possible?
 
-        logger.debug("fetching projects from Katsu")
+        await logger.adebug("fetching projects from Katsu")
         headers = service_request_headers(request=request)
         res = await http_session.get(
             urljoin(config.katsu_url, "api/projects"),
@@ -143,7 +142,7 @@ async def all_datasets_search_handler(
             headers,
         )
 
-        logger.info("Done fetching individual service search results.")
+        await logger.ainfo("done fetching individual service search results")
 
         # Aggregate datasets into results list if they satisfy the queries
         for dataset_id, dataset_results in dataset_objects_dict.items():
@@ -156,10 +155,8 @@ async def all_datasets_search_handler(
     except ClientResponseError as e:
         # Metadata service error
         # TODO: Better message
-        err = f"Error from service: {str(e)}"
-        logger.error(err)
-        # TODO: include traceback in error
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=err)
+        await logger.aexception("error from service", exc_info=e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error from service: {str(e)}")
 
 
 @dataset_search_router.post("/dataset-search/{dataset_id}")
@@ -172,17 +169,18 @@ async def dataset_search_handler(
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
+    logger = logger.bind(dataset_id=dataset_id, search_req=search_req)
+
     try:
         # Try compiling each query to make sure it works. Any exceptions thrown will get caught below.
         test_queries(search_req.data_type_queries.values())
     except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
         # TODO: Better / more compliant error message
-        err = f"Query processing error: {str(e)}"
-        traceback.print_exc()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+        await logger.aexception("query processing error", exc_info=e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Query processing error: {str(e)}")
 
     try:
-        logger.debug(f"fetching dataset {dataset_id} from Katsu")
+        await logger.adebug("fetching dataset from Katsu")
         headers = service_request_headers(request)
         res = await http_session.get(
             urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
@@ -215,7 +213,5 @@ async def dataset_search_handler(
     except ClientResponseError as e:
         # Metadata service error
         # TODO: Better message
-        err = f"Error from service: {str(e)}"
-        logger.error(err)
-        traceback.print_exc()  # TODO: log instead of printing manually
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=err)
+        await logger.aexception("error from service", exc_info=e)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error from service: {str(e)}")
