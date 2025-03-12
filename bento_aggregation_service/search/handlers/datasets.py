@@ -1,23 +1,17 @@
 from __future__ import annotations
 
-import asyncio
-
-from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 from bento_lib.search.queries import Query
 from fastapi import APIRouter, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from structlog.stdlib import BoundLogger
 from urllib.parse import urljoin
 
-from bento_aggregation_service.config import Config, ConfigDependency
+from bento_aggregation_service.authz import authz_middleware
+from bento_aggregation_service.config import ConfigDependency
 from bento_aggregation_service.http_session import HTTPSessionDependency
 from bento_aggregation_service.logger import LoggerDependency
-from bento_aggregation_service.service_manager import (
-    ServiceManager,
-    ServiceManagerDependency,
-)
+from bento_aggregation_service.service_manager import ServiceManagerDependency
 
 from ..dataset_search import run_search_on_dataset
 from ..query_utils import service_request_headers, test_queries
@@ -41,7 +35,7 @@ class DatasetSearchRequest(BaseModel):
     exclude_from_auto_join: tuple[str, ...] = ()
 
 
-@dataset_search_router.post("/dataset-search/{dataset_id}")
+@dataset_search_router.post("/dataset-search/{dataset_id}", dependencies=[authz_middleware.dep_public_endpoint()])
 async def dataset_search_handler(
     request: Request,
     search_req: DatasetSearchRequest,
@@ -83,6 +77,7 @@ async def dataset_search_handler(
             search_req.data_type_queries,
             search_req.exclude_from_auto_join,
             include_internal_results=True,
+            # dependencies:
             config=config,
             http_session=http_session,
             logger=logger,

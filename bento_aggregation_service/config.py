@@ -1,4 +1,4 @@
-from bento_lib.config.pydantic import BentoBaseConfig
+from bento_lib.config.pydantic import BentoFastAPIBaseConfig
 from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated
@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 
-class Config(BentoBaseConfig):
+class Config(BentoFastAPIBaseConfig):
     service_id: str = str(":".join(list(SERVICE_TYPE.values())[:2]))
     service_name: str = "Bento Aggregation Service"
 

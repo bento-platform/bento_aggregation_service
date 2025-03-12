@@ -1,54 +1,34 @@
 from __future__ import annotations
 
-import asyncio
-
-from bento_lib.logging.structured.fastapi import build_structlog_fastapi_middleware
-from bento_lib.service_info.helpers import build_service_info_from_pydantic_config
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from bento_lib.apps.fastapi import BentoFastAPI
 
 from . import __version__
-from .config import ConfigDependency, get_config
+from .authz import authz_middleware
+from .config import get_config
 from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
-from .logger import LoggerDependency
+from .logger import get_logger
 from .search.handlers.datasets import dataset_search_router
 
 
-application = FastAPI()
+BENTO_SERVICE_INFO = {
+    "serviceKind": BENTO_SERVICE_KIND,
+    "dataService": False,
+    "workflowProvider": False,
+    "gitRepository": "https://github.com/bento-platform/bento_aggregation_service",
+}
+
 
 # TODO: Find a way to DI this
 config_for_setup = get_config()
-
-application.add_middleware(
-    CORSMiddleware,
-    allow_origins=config_for_setup.cors_origins,
-    allow_headers=["Authorization"],
-    allow_credentials=True,
-    allow_methods=["*"],
+logger_for_setup = get_logger(config_for_setup)
+application = BentoFastAPI(
+    authz_middleware,
+    config_for_setup,
+    logger_for_setup,
+    BENTO_SERVICE_INFO,
+    SERVICE_TYPE,
+    __version__,
+    configure_structlog_access_logger=True,  # Set up custom access log middleware to replace the default Uvicorn one
 )
 
-application.middleware("http")(build_structlog_fastapi_middleware(BENTO_SERVICE_KIND))
-
 application.include_router(dataset_search_router)
-
-
-async def _git_stdout(*args) -> str:
-    git_proc = await asyncio.create_subprocess_exec(
-        "git", *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    res, _ = await git_proc.communicate()
-    return res.decode().rstrip()
-
-
-@application.get("/service-info")
-async def service_info(config: ConfigDependency, logger: LoggerDependency):
-    return await build_service_info_from_pydantic_config(
-        config,
-        logger,
-        {
-            "serviceKind": BENTO_SERVICE_KIND,
-            "gitRepository": "https://github.com/bento-platform/bento_aggregation_service",
-        },
-        SERVICE_TYPE,
-        __version__,
-    )
