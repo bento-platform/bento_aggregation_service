@@ -45,6 +45,22 @@ async def dataset_search_handler(
     logger: LoggerDependency,
     service_manager: ServiceManagerDependency,
 ):
+    """
+    Executes a search on the specified data types of a dataset in the Bento instance. Authorization is open because
+    requests are more-or-less immediately proxied to data services with the authorization header. These services will
+    then check access themselves, and these searches are all-or-nothing (no censoring fallback) so if we get a 403 from
+    one service, the whole request will fail.
+    :param request: FastAPI Request object
+    :param search_req: Search request object (see above model definition: DatasetSearchRequest)
+    :param dataset_id: Dataset ID from URL
+    :param config: Injected service configuration instance
+    :param http_session: Injected shared aiohttp session instance
+    :param logger: Injected structlog.stdlib.BoundLogger instance
+    :param service_manager: Injected Bento service manager singleton instance
+    :return:
+    """
+
+    # Bind request parameters to all logging done inside this request handler
     logger = logger.bind(dataset_id=dataset_id, search_req=search_req)
 
     try:
