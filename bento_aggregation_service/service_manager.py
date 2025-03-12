@@ -61,9 +61,9 @@ class ServiceManager:
         session: aiohttp.ClientSession
         async with self._http_session(existing_session) as session:
             url = urljoin(self._service_registry_url, "/api/service-registry/services")
-            r = await session.get(url, headers=headers)
-            body = await r.json()
-            logger = self._logger.bind(service_list_status=r.status, service_list_body=body)
+            async with session.get(url, headers=headers) as r:
+                body = await r.json()
+                logger = self._logger.bind(service_list_status=r.status, service_list_body=body)
 
             if not r.ok:
                 await logger.aerror("recieved error response from service registry while fetching service list")
@@ -90,14 +90,14 @@ class ServiceManager:
             service_base_url = ds["url"]
             dt_url = service_base_url.rstrip("/") + "/data-types"
 
-            r = await s.get(dt_url, headers=headers)
-            if not r.ok:
-                await self._logger.aerror(
-                    "recieved error from data-types URL", url=dt_url, status=r.status, body=await r.json()
-                )
-                return ()
+            async with s.get(dt_url, headers=headers) as r:
+                if not r.ok:
+                    await self._logger.aerror(
+                        "recieved error from data-types URL", url=dt_url, status=r.status, body=await r.json()
+                    )
+                    return ()
+                service_dts: list[GA4GHServiceInfo] = await r.json()
 
-            service_dts: list[GA4GHServiceInfo] = await r.json()
             return tuple(
                 DataType.model_validate({"service_base_url": service_base_url, "data_type_listing": sdt})
                 for sdt in service_dts
@@ -105,7 +105,7 @@ class ServiceManager:
 
         session: aiohttp.ClientSession
         async with self._http_session(existing=existing_session) as session:
-            dts_nested: tuple[tuple[DataType, ...], ...] = await asyncio.gather(
+            dts_nested: list[tuple[DataType, ...]] = await asyncio.gather(
                 *(_get_data_types_for_service(session, ds) for ds in data_services)
             )
 

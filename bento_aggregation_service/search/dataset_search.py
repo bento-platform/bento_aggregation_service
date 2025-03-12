@@ -266,8 +266,8 @@ async def _run_search(
             url_args = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
 
         # Run the search
-        res = await http_session.get(search_path, params=url_args, headers=headers)
-        r = await res.json()
+        async with http_session.get(search_path, params=url_args, headers=headers) as res:
+            r = await res.json()
 
         if private:
             ids = r["results"]
@@ -428,9 +428,10 @@ async def run_search_on_dataset(
     # every service.
 
     # POST required to avoid exceeding GET parameters limit size with the list of ids
-    r = await http_session.post(
+    async with http_session.post(
         f"{config.katsu_url.rstrip('/')}/private/datasets/{dataset_id}/search",
         json=request_body,
         headers=headers,
-    )
-    return await r.json()
+        raise_for_status=True,
+    ) as r:
+        return await r.json()
