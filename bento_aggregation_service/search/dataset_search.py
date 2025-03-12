@@ -329,8 +329,7 @@ async def run_search_on_dataset(
     dataset_id: str = dataset["identifier"]
     logger = logger.bind(dataset_id=dataset_id)  # may already be bound from caller, but just in case
 
-    await logger.adebug("got linked field sets", linked_field_sets=linked_field_sets)
-    await logger.adebug("running search on dataset")
+    await logger.adebug("running search on dataset", linked_field_sets=linked_field_sets)
 
     # Set of data types excluded from building the join query
     # exclude_from_auto_join: a list of data types that will get excluded from the join query even if there are
