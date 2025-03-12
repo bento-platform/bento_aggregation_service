@@ -64,13 +64,13 @@ async def dataset_search_handler(
     try:
         await logger.adebug("fetching dataset from Katsu")
         headers = service_request_headers(request)
-        res = await http_session.get(
+
+        async with http_session.get(
             urljoin(config.katsu_url, f"api/datasets/{dataset_id}"),
             headers=headers,
             raise_for_status=True,
-        )
-
-        dataset = await res.json()
+        ) as res:
+            dataset = await res.json()
 
         # TODO: Handle dataset 404 properly
 
