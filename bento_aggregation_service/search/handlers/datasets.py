@@ -92,7 +92,6 @@ async def dataset_search_handler(
             search_req.join_query,
             search_req.data_type_queries,
             search_req.exclude_from_auto_join,
-            include_internal_results=True,
             # dependencies:
             config=config,
             http_session=http_session,

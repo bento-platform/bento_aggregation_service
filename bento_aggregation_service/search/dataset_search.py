@@ -175,7 +175,6 @@ async def _run_search(
     dataset_join_query: Query,
     data_type_queries: dict[str, Query],
     target_linked_fields: DictOfDataTypesAndFields | None,
-    include_internal_results: bool,
     dataset_object_schema: dict,
     dataset_linked_fields_results: list[set],
     config: Config,
@@ -209,10 +208,6 @@ async def _run_search(
         # datatype related data without any filtering. For perf. reasons
         # this is unneeded when doing a search
         is_querying_data_type = data_type_queries[data_type] is not True
-
-        # Don't need to fetch results for joining if the join query is None; just check
-        # individual tables (which is much faster) using the public discovery endpoint.
-        private = dataset_join_query is not None or include_internal_results
 
         data_type_entry = data_type_entries[data_type]
 
@@ -269,24 +264,20 @@ async def _run_search(
         async with http_session.get(search_path, params=url_args, headers=headers) as res:
             r = await res.json()
 
-        if private:
-            ids = r["results"]
-            if is_using_gohan:
-                # the gohan results object has to be flattened to a list of sample_id from
-                # [{
-                #   "assembly":...,
-                #   "calls": [{
-                #               "sample_id": "HG00106",
-                #               "genotype_type": "HETEROZYGOUS"
-                #             },...
-                #           ]
-                # },...]
-                ids = [call["sample_id"] for r in ids for call in r["calls"]]
-            # We have a results array to account for
-            results = {id_ for id_ in ids if id_ is not None}
-        else:
-            # Here, the array of 1 True is a dummy value to give a positive result
-            results = {r} if r else set()
+        ids = r["results"]
+        if is_using_gohan:
+            # the gohan results object has to be flattened to a list of sample_id from
+            # [{
+            #   "assembly":...,
+            #   "calls": [{
+            #               "sample_id": "HG00106",
+            #               "genotype_type": "HETEROZYGOUS"
+            #             },...
+            #           ]
+            # },...]
+            ids = [call["sample_id"] for r in ids for call in r["calls"]]
+        # We have a results array to account for
+        results = {id_ for id_ in ids if id_ is not None}
 
         dataset_linked_fields_results.append(results)
 
@@ -314,7 +305,6 @@ async def run_search_on_dataset(
     join_query: Query,
     data_type_queries: dict[str, Query],
     exclude_from_auto_join: tuple[str, ...],
-    include_internal_results: bool,
     config: Config,
     http_session: ClientSession,
     logger: BoundLogger,
@@ -388,7 +378,6 @@ async def run_search_on_dataset(
             join_query,
             data_type_queries,
             target_linked_field,
-            include_internal_results,
             dataset_object_schema,
             dataset_linked_fields_results,
             config,
@@ -401,11 +390,6 @@ async def run_search_on_dataset(
         results = dataset_linked_fields_results[0] if len(dataset_linked_fields_results) > 0 else []
         for r in dataset_linked_fields_results:
             results.intersection_update(r)
-
-        if not include_internal_results:
-            return {
-                "results": list(results),
-            }
 
         # edge case: no result, no extra query
         if len(results) == 0:
