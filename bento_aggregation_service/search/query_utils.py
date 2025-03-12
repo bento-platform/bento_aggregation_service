@@ -36,14 +36,6 @@ def test_queries(queries: Iterable[Query]) -> None:
         convert_query_to_ast_and_preprocess(q)
 
 
-def print_tree(tabs, t):
-    for i in t:
-        if isinstance(i, list):
-            print_tree(tabs + 1, i)
-        else:
-            print(f"{tabs * '   '}{i}")
-
-
 def simple_resolve_tree(t, finalists: list[str]) -> list[str]:
     counter = 0
     for i in t:
