@@ -1,4 +1,4 @@
-FROM ghcr.io/bento-platform/bento_base_image:python-debian-2025.03.01
+FROM ghcr.io/bento-platform/bento_base_image:python-debian-2025.05.05
 
 # Run as root in the Dockerfile until we drop down to the service user in the entrypoint
 USER root
