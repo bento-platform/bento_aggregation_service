@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "bento_aggregation_service"
-version = "0.20.0"
+version = "0.20.1"
 description = "Search result aggregation service for the Bento platform."
 authors = ["David Lougheed <david.lougheed@mail.mcgill.ca>"]
 readme = "README.md"
@@ -20,7 +20,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.10.0"
 bento-lib = {extras = ["fastapi"], version = "^13.5.2"}
-fastapi = {extras = ["standard"], version = "^0.115.11"}
+fastapi = {extras = ["standard"], version = "^0.116.1"}
 pydantic-settings = "^2.1.0"
 aiohttp = "^3.12.14"
 pydantic = "^2.6.1"
@@ -33,7 +33,7 @@ pytest = "^8.2.1"
 pytest-cov = "^6.1.1"
 tox = "^4.11.3"
 httpx = "^0.28.1"
-ruff = "^0.11.8"
+ruff = "^0.12.11"
 
 [tool.ruff]
 line-length = 120
