@@ -30,7 +30,8 @@ RUN poetry config virtualenvs.create false && \
 
 COPY run.dev.bash .
 
-ENV BENTO_DEBUG=True
+# Tell the service that we're running a local development container
+ENV BENTO_CONTAINER_LOCAL=True
 
 # Use base image entrypoint for dropping down into bento_user & running this CMD
 CMD ["bash", "./run.dev.bash"]
