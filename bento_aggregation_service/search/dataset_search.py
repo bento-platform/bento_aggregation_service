@@ -218,7 +218,7 @@ async def _run_search(
             # Set schema for data type if needed
             dataset_object_schema["properties"][data_type] = {
                 "type": "array",
-                "items": data_type_entry["data_type_listing"]["item_schema"] if is_querying_data_type else {},
+                "items": data_type_entry["data_type_listing"]["schema"] if is_querying_data_type else {},
             }
 
         # If data type is not being queried, its results are irrelevant
