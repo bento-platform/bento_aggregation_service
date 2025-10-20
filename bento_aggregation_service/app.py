@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from bento_lib.apps.fastapi import BentoFastAPI
+from bento_lib.service_info.types import BentoExtraServiceInfo
 
 from . import __version__
 from .authz import authz_middleware
@@ -10,7 +11,7 @@ from .logger import get_logger
 from .search.handlers.datasets import dataset_search_router
 
 
-BENTO_SERVICE_INFO = {
+BENTO_SERVICE_INFO: BentoExtraServiceInfo = {
     "serviceKind": BENTO_SERVICE_KIND,
     "dataService": False,
     "workflowProvider": False,
