@@ -37,6 +37,6 @@ jobs:
       run: poetry run pytest -svv --cov=bento_aggregation_service --cov-branch
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
