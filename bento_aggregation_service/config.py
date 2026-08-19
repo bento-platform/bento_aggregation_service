@@ -1,7 +1,8 @@
-from bento_lib.config.pydantic import BentoFastAPIBaseConfig
-from fastapi import Depends
 from functools import lru_cache
 from typing import Annotated
+
+from bento_lib.config.pydantic import BentoFastAPIBaseConfig
+from fastapi import Depends
 
 from .constants import SERVICE_TYPE
 
@@ -24,7 +25,7 @@ class Config(BentoFastAPIBaseConfig):
     service_registry_url: str  # used for fetching list of data services, so we can get data type providers
 
 
-@lru_cache()
+@lru_cache
 def get_config() -> Config:
     return Config()
 

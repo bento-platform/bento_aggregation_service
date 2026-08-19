@@ -1,7 +1,7 @@
-import pytest
 import os
-from fastapi.testclient import TestClient
 
+import pytest
+from fastapi.testclient import TestClient
 
 os.environ["BENTO_DEBUG"] = "true"
 os.environ["BENTO_AUTHZ_SERVICE_URL"] = "https://authz.local"

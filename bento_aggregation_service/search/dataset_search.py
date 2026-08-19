@@ -1,15 +1,14 @@
 import itertools
 import json
+from urllib.parse import urljoin
 
 from aiohttp import ClientSession
 from bento_lib.search.queries import Query
 from bento_lib.service_info.manager import ServiceManager
 from structlog.stdlib import BoundLogger
-from urllib.parse import urljoin
 
 from bento_aggregation_service.config import Config
 from bento_aggregation_service.search import query_utils
-
 
 __all__ = [
     "run_search_on_dataset",
@@ -203,11 +202,11 @@ async def _run_search(
 
     data_type_entries = await service_manager.fetch_data_types(headers=headers)
 
-    for data_type in data_type_queries.keys():
+    for data_type, data_type_query in data_type_queries:
         # True is a value used instead of the AST string to return the whole
         # datatype related data without any filtering. For perf. reasons
         # this is unneeded when doing a search
-        is_querying_data_type = data_type_queries[data_type] is not True
+        is_querying_data_type = data_type_query is not True
 
         data_type_entry = data_type_entries[data_type]
 
@@ -229,7 +228,7 @@ async def _run_search(
         # - defaults:
         search_path = f"{data_type_entry['service_base_url']}/private/datasets/{dataset_id}/search"
         url_args = [
-            ("query", json.dumps(data_type_queries[data_type])),
+            ("query", json.dumps(data_type_query)),
             ("data_type", data_type),
         ]
 
@@ -256,7 +255,7 @@ async def _run_search(
             supplemental_url_args = [("getSampleIdsOnly", "true")]
             # - transform custom Query to list of lists to simplify
             #   the gohan query parameter construction
-            reloaded_converted = json.loads(json.dumps(data_type_queries[data_type]))
+            reloaded_converted = json.loads(json.dumps(data_type_query))
             # - generate query parameters from list of query tree objects
             url_args = query_utils.construct_gohan_query_params(reloaded_converted, supplemental_url_args)
 
