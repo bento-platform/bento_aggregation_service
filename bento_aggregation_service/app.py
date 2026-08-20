@@ -10,7 +10,6 @@ from .constants import BENTO_SERVICE_KIND, SERVICE_TYPE
 from .logger import get_logger
 from .search.handlers.datasets import dataset_search_router
 
-
 BENTO_SERVICE_INFO: BentoExtraServiceInfo = {
     "serviceKind": BENTO_SERVICE_KIND,
     "dataService": False,

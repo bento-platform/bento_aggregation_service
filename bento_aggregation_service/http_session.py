@@ -1,7 +1,7 @@
-import aiohttp
-
-from fastapi import Depends
 from typing import Annotated
+
+import aiohttp
+from fastapi import Depends
 
 from .config import ConfigDependency
 

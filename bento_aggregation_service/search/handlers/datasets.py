@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from urllib.parse import urljoin
+
 from aiohttp.client_exceptions import ClientResponseError
 from bento_lib.search.queries import Query
 from fastapi import APIRouter, Request, status
 from fastapi.exceptions import HTTPException
 from pydantic import BaseModel
-from urllib.parse import urljoin
 
 from bento_aggregation_service.authz import authz_middleware
 from bento_aggregation_service.config import ConfigDependency
@@ -15,7 +16,6 @@ from bento_aggregation_service.service_manager import ServiceManagerDependency
 
 from ..dataset_search import run_search_on_dataset
 from ..query_utils import service_request_headers, test_queries
-
 
 __all__ = [
     "dataset_search_router",
@@ -69,7 +69,7 @@ async def dataset_search_handler(
     except (TypeError, ValueError, SyntaxError) as e:  # errors from query processing
         # TODO: Better / more compliant error message
         await logger.aexception("query processing error", exc_info=e)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Query processing error: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Query processing error: {e!s}")
 
     try:
         await logger.adebug("fetching dataset from Katsu")
@@ -106,4 +106,4 @@ async def dataset_search_handler(
         # Metadata service error
         # TODO: Better message
         await logger.aexception("error from service", exc_info=e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error from service: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error from service: {e!s}")

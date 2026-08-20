@@ -33,7 +33,10 @@ httpx2 = "^2.3.0"
 pytest = "^9.0.2"
 pytest-cov = "^7.0.0"
 tox = "^4.32.0"
-ruff = "^0.15.0"
+ruff = "^0.16.3"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+ignore = ["RUF022"]

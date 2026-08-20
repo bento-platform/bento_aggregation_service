@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from bento_lib.search.queries import convert_query_to_ast_and_preprocess, Query
-from fastapi import Request
-from typing import Iterable
+from collections.abc import Iterable
 
+from bento_lib.search.queries import Query, convert_query_to_ast_and_preprocess
+from fastapi import Request
 
 __all__ = [
     "service_request_headers",
@@ -37,23 +37,19 @@ def test_queries(queries: Iterable[Query]) -> None:
 
 
 def simple_resolve_tree(t, finalists: list[str]) -> list[str]:
-    counter = 0
-    for i in t:
+    for idx, i in enumerate(t):
         if isinstance(i, list):
             simple_resolve_tree(i, finalists)
-        if counter == len(t) - 1 and (isinstance(i, str) or isinstance(i, int)):
+        if idx == len(t) - 1 and isinstance(i, (str, int)):
             finalists.append(str(i))
-        counter += 1
     return finalists
 
 
 def pair_up_simple_list(t: list[str]) -> list[list[str]]:
-    counter = 0
     pairs = []
-    for _ in t:
-        if counter % 2 == 0:
-            pairs.append([t[counter], t[counter + 1]])
-        counter += 1
+    for i, _ in enumerate(t):
+        if i % 2 == 0:
+            pairs.append([t[i], t[i + 1]])
     return pairs
 
 

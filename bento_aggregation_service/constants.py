@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from bento_lib.service_info.helpers import build_bento_service_type
-from . import __version__
 
+from . import __version__
 
 __all__ = [
     "BENTO_SERVICE_KIND",
