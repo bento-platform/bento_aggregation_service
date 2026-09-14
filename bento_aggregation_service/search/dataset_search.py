@@ -202,7 +202,7 @@ async def _run_search(
 
     data_type_entries = await service_manager.fetch_data_types(headers=headers)
 
-    for data_type, data_type_query in data_type_queries:
+    for data_type, data_type_query in data_type_queries.items():
         # True is a value used instead of the AST string to return the whole
         # datatype related data without any filtering. For perf. reasons
         # this is unneeded when doing a search
